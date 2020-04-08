@@ -17,6 +17,11 @@ dependencies {
     implementation 'com.google.guava:guava:27.1-jre'
     implementation 'io.vertx:vertx-core:3.9.0'
     implementation 'io.vertx:vertx-web:3.9.0'
+
+    implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.228')
+    implementation 'com.amazonaws:aws-java-sdk-s3'
+    implementation 'com.amazonaws:aws-java-sdk-sts'
+    implementation 'commons-cli:commons-cli:1.4'
 }
 
 group = 'org.openmicroscopy'
