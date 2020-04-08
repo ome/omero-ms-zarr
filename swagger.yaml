@@ -1,0 +1,126 @@
+swagger: "2.0"
+externalDocs:
+  description: "Find out more about OMERO"
+  url: "https://www.openmicroscopy.org/omero"
+info:
+  description: "Beginning of Zarr API"
+  version: "0.0.1"
+  title: "omero-ms-zarr"
+  termsOfService: "http://swagger.io/terms/"
+  contact:
+    email: "apiteam@swagger.io"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "swagger.openmicroscopy.org"
+basePath: "/zarr/v1"
+tags:
+- name: "image"
+  description: "Load chunks of image data by ID"
+  externalDocs:
+    description: "Find out more"
+    url: "http://docs.openmicroscopy.org/omero"
+schemes:
+- "https"
+- "http"
+paths:
+  /image/{imageId}:
+    head:
+      tags:
+      - "image"
+      summary: "Check if an image is GET-able"
+      parameters:
+      - name: "imageId"
+        in: "path"
+        description: "ID of image to return"
+        required: true
+        type: "integer"
+        format: "int64"
+        minimum: 0
+      responses:
+        200:
+          description: ""
+        303:
+          description: "Redirects to URL to generate the zarr"
+        404:
+          description: "image not found"
+        501:
+          description: "No backend is configured for generating the zarr"
+    get:
+      tags:
+      - "image"
+      summary: "Find image by ID"
+      description: "Returns a image pet, also the base URL for a zarr store"
+      operationId: "getImageById"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "imageId"
+        in: "path"
+        description: "ID of image to return"
+        required: true
+        type: "integer"
+        format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Image"
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "image not found"
+      security:
+      - api_key: []
+securityDefinitions:
+  petstore_auth:
+    type: "oauth2"
+    authorizationUrl: "http://petstore.swagger.io/oauth/dialog"
+    flow: "implicit"
+    scopes:
+      write:pets: "modify pets in your account"
+      read:pets: "read your pets"
+  api_key:
+    type: "apiKey"
+    name: "api_key"
+    in: "header"
+definitions:
+  Image:
+    type: "object"
+    required:
+    - "name"
+    - "photoUrls"
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      name:
+        type: "string"
+        example: "doggie"
+      photoUrls:
+        type: "array"
+        xml:
+          name: "photoUrl"
+          wrapped: true
+        items:
+          type: "string"
+      status:
+        type: "string"
+        description: "pet status in the store"
+        enum:
+        - "available"
+        - "pending"
+        - "sold"
+    xml:
+      name: "Pet"
+  ApiResponse:
+    type: "object"
+    properties:
+      code:
+        type: "integer"
+        format: "int32"
+      type:
+        type: "string"
+      message:
+        type: "string"
