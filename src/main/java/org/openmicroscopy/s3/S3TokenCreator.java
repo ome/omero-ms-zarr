@@ -1,7 +1,4 @@
-package com.example;
-
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+package org.openmicroscopy.s3;
 import com.amazonaws.auth.policy.*;
 import com.amazonaws.auth.policy.actions.S3Actions;
 import com.amazonaws.auth.policy.conditions.StringCondition;
@@ -15,6 +12,7 @@ import com.amazonaws.services.securitytoken.model.AssumeRoleResult;
 import org.apache.commons.cli.*;
 
 import static com.amazonaws.auth.policy.conditions.StringCondition.StringComparisonType.StringLike;
+import static com.google.common.base.Strings.nullToEmpty;
 
 
 /**
@@ -51,10 +49,14 @@ public class S3TokenCreator {
         return policy.toJson();
     }
 
-    public AssumeRoleResult createToken(String endpoint, String region, String accessKey, String secretKey, String bucket, String prefix) {
+    public AssumeRoleResult createToken(String endpoint, String region, String bucket, String prefix) {
         AWSSecurityTokenServiceClientBuilder builder = AWSSecurityTokenServiceClientBuilder.standard();
-        builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region));
-        builder.setCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)));
+        if (!endpoint.isEmpty()) {
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region));
+        } else if (!region.isEmpty()) {
+            builder.setRegion(region);
+        }
+
         AWSSecurityTokenService client = builder.build();
 
         AssumeRoleRequest request = new AssumeRoleRequest()
@@ -65,9 +67,9 @@ public class S3TokenCreator {
         return client.assumeRole(request);
     }
 
-    private static void addRequiredOption(Options options, String opt, String help) {
+    private static void addOption(Options options, String opt, boolean required, String help) {
         Option option = new Option(opt, true, help);
-        option.setRequired(true);
+        option.setRequired(required);
         options.addOption(option);
     }
 
@@ -80,12 +82,10 @@ public class S3TokenCreator {
      */
     public static void main(String[] args) throws Exception {
         Options options = new Options();
-        addRequiredOption(options, "endpoint", "S3 server endpoint");
-        addRequiredOption(options, "region", "S3 region, can be empty");
-        addRequiredOption(options, "accesskey", "Access key ID for the STS admin user");
-        addRequiredOption(options, "secretkey", "Secret access key ID for STS admin user");
-        addRequiredOption(options, "bucket", "S3 bucket");
-        addRequiredOption(options, "prefix", "Prefix inside bucket, for example *, prefix/*, prefix/file.name");
+        addOption(options, "endpoint", false, "S3 server endpoint (optional)");
+        addOption(options, "region", false, "S3 region (optional)");
+        addOption(options, "bucket", true, "S3 bucket (required)");
+        addOption(options, "prefix", true, "Prefix inside bucket, for example *, prefix/*, prefix/file.name (required)");
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter help = new HelpFormatter();
@@ -94,20 +94,20 @@ public class S3TokenCreator {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
+            String header = "Create a temporary S3 access token using the Security Token Service. " +
+                    "Credentials are read using the AWS Default Credential Provider Chain.";
             help.printHelp("S3TokenCreator", options);
             System.exit(1);
         }
 
-        String endpoint = cmd.getOptionValue("endpoint");
-        String region = cmd.getOptionValue("region");
+        String endpoint = nullToEmpty(cmd.getOptionValue("endpoint"));
+        String region = nullToEmpty(cmd.getOptionValue("region"));
         S3TokenCreator client = new S3TokenCreator();
         AssumeRoleResult result = client.createToken(
                 endpoint,
                 region,
-                cmd.getOptionValue("accesskey"),
-                cmd.getOptionValue("secretkey"),
-                cmd.getOptionValue("bucket"),
-                cmd.getOptionValue("prefix"));
+                nullToEmpty(cmd.getOptionValue("bucket")),
+                nullToEmpty(cmd.getOptionValue("prefix")));
 
         String jsonOutput =
                 "{" + dquote("endpoint_url") + ":" + dquote(endpoint) +
