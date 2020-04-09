@@ -24,7 +24,10 @@ dependencies {
 group = 'org.openmicroscopy'
 version = '0.1.0-SNAPSHOT'
 description = 'omero-ms-zarr'
-sourceCompatibility = '1.8'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
 
 mainClassName = "org.openmicroscopy.ms.zarr.ZarrDataService"
 
