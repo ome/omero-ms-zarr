@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
 }
 
 repositories {
@@ -23,6 +24,10 @@ group = 'org.openmicroscopy'
 version = '0.1.0-SNAPSHOT'
 description = 'omero-ms-zarr'
 sourceCompatibility = '1.8'
+
+shadowJar {
+    zip64 true
+}
 
 publishing {
     publications {
