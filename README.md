@@ -31,6 +31,10 @@ and try
 To run as a standalone application you must define your access credentials using Java properties, environment variables, credentials files, or mechanisms specific to running on AWS infrastructure.
 See https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
 
-For example, using Java properties:
+For example, using Java properties, this will create a token for all objects (`*`) in bucket `tmp` :
 
-    java -Daws.accessKeyId=stsadmin -Daws.secretKey=stsadmin-secret -cp build/libs/omero-ms-zarr-0.1.0-SNAPSHOT-all.jar org.openmicroscopy.s3.S3TokenCreator -endpoint http://localhost:9000 -bucket tmp -prefix '*'
+    java -Daws.accessKeyId=stsadmin -Daws.secretAccessKey=stsadmin-secret \
+        -cp build/libs/omero-ms-zarr-0.1.0-SNAPSHOT-all.jar \
+        org.openmicroscopy.s3.S3TokenCreator \
+        -endpoint http://localhost:9000 -bucket tmp -prefix '*'
+

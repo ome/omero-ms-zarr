@@ -1,17 +1,13 @@
 package org.openmicroscopy.s3;
-import com.amazonaws.auth.policy.*;
-import com.amazonaws.auth.policy.actions.S3Actions;
-import com.amazonaws.auth.policy.conditions.StringCondition;
-import com.amazonaws.auth.policy.resources.S3BucketResource;
-import com.amazonaws.auth.policy.resources.S3ObjectResource;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.AssumeRoleRequest;
-import com.amazonaws.services.securitytoken.model.AssumeRoleResult;
-import org.apache.commons.cli.*;
 
-import static com.amazonaws.auth.policy.conditions.StringCondition.StringComparisonType.StringLike;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
+import org.apache.commons.cli.*;
+import java.net.URI;
+
 import static com.google.common.base.Strings.nullToEmpty;
 
 
@@ -33,38 +29,51 @@ public class S3TokenCreator {
         // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements.html
         // https://aws.amazon.com/premiumsupport/knowledge-center/s3-folder-user-access/
 
-        Statement bucketAccess = new Statement(Statement.Effect.Allow)
-                .withId("ListObjectsInBucket")
-                .withActions(S3Actions.ListObjects)
-                .withResources(new S3BucketResource(bucket))
-                .withConditions(
-                        new StringCondition(StringLike, "s3:prefix", prefix)
-                );
-        Statement objectAccess = new Statement(Statement.Effect.Allow)
-                .withId("GetObjectsInBucket")
-                .withActions(S3Actions.GetObject)
-                .withResources(new S3ObjectResource(bucket, prefix));
-        Policy policy = new Policy()
-                .withStatements(bucketAccess, objectAccess);
-        return policy.toJson();
+        String policyTemplate = "{" +
+                "\"Version\": \"2012-10-17\"," +
+                "\"Statement\": [" +
+                "{" +
+                    "\"Sid\": \"ListObjectsInBucket\"," +
+                    "\"Effect\": \"Allow\"," +
+                    "\"Action\": \"s3:ListBucket\"," +
+                    "\"Resource\": [\"arn:aws:s3:::%s\"]," + // bucket
+                    "\"Condition\": {" +
+                        "\"StringLike\": { \"s3:prefix\": [\"%s\"]}" + // prefix
+                    "}" +
+                "}," +
+                "{" +
+                    "\"Sid\": \"GetObjectsInBucket\"," +
+                        "\"Effect\": \"Allow\"," +
+                        "\"Action\": \"s3:GetObject\"," +
+                        "\"Resource\": [\"arn:aws:s3:::%s/%s\"]" + // bucket prefix
+                "}" +
+            "]" +
+        "}";
+
+        return String.format(policyTemplate, bucket, prefix, bucket, prefix);
     }
 
-    public AssumeRoleResult createToken(String endpoint, String region, String bucket, String prefix) {
-        AWSSecurityTokenServiceClientBuilder builder = AWSSecurityTokenServiceClientBuilder.standard();
-        if (!endpoint.isEmpty()) {
-            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region));
-        } else if (!region.isEmpty()) {
-            builder.setRegion(region);
+    public AssumeRoleResponse createToken(URI endpoint, String region, String bucket, String prefix) {
+        StsClientBuilder builder = StsClient.builder();
+        if (endpoint != null) {
+            builder.endpointOverride(endpoint);
+            // If endpoint is set this means we're not using AWS S3, but the client requires a region even if it's ignored by the server
+            if (region.isEmpty()) {
+                builder.region(Region.AWS_GLOBAL);
+            }
+        }
+        if (!region.isEmpty()) {
+            builder.region(Region.of(region));
         }
 
-        AWSSecurityTokenService client = builder.build();
+        StsClient client = builder.build();
 
-        AssumeRoleRequest request = new AssumeRoleRequest()
-                .withDurationSeconds(900)
-                .withPolicy(getPolicy(bucket, prefix))
-                .withRoleArn("arn:x:ignored:by:minio:")
-                .withRoleSessionName("ignored-by-minio");
-        return client.assumeRole(request);
+        AssumeRoleRequest.Builder request = AssumeRoleRequest.builder()
+                .durationSeconds(900)
+                .policy(getPolicy(bucket, prefix))
+                .roleArn("arn:x:ignored:by:minio:")
+                .roleSessionName("ignored-by-minio");
+        return client.assumeRole(request.build());
     }
 
     private static void addOption(Options options, String opt, boolean required, String help) {
@@ -96,15 +105,19 @@ public class S3TokenCreator {
             System.out.println(e.getMessage());
             String header = "Create a temporary S3 access token using the Security Token Service. " +
                     "Credentials are read using the AWS Default Credential Provider Chain.";
-            help.printHelp("S3TokenCreator", options);
+            help.printHelp("S3TokenCreator", header, options, "", true);
             System.exit(1);
         }
 
+        URI endpointUri = null;
         String endpoint = nullToEmpty(cmd.getOptionValue("endpoint"));
+        if (!endpoint.isEmpty()) {
+            endpointUri = new URI(endpoint);
+        }
         String region = nullToEmpty(cmd.getOptionValue("region"));
         S3TokenCreator client = new S3TokenCreator();
-        AssumeRoleResult result = client.createToken(
-                endpoint,
+        AssumeRoleResponse result = client.createToken(
+                endpointUri,
                 region,
                 nullToEmpty(cmd.getOptionValue("bucket")),
                 nullToEmpty(cmd.getOptionValue("prefix")));
@@ -112,9 +125,9 @@ public class S3TokenCreator {
         String jsonOutput =
                 "{" + dquote("endpoint_url") + ":" + dquote(endpoint) +
                 "," + dquote("region_name") + ":" + dquote(region) +
-                "," + dquote("aws_access_key_id") + ":" + dquote(result.getCredentials().getAccessKeyId()) +
-                "," + dquote("aws_secret_access_key") + ":" + dquote(result.getCredentials().getSecretAccessKey()) +
-                "," + dquote("aws_session_token") + ":" + dquote(result.getCredentials().getSessionToken()) +
+                "," + dquote("aws_access_key_id") + ":" + dquote(result.credentials().accessKeyId()) +
+                "," + dquote("aws_secret_access_key") + ":" + dquote(result.credentials().secretAccessKey()) +
+                "," + dquote("aws_session_token") + ":" + dquote(result.credentials().sessionToken()) +
                 "}";
         System.out.println(jsonOutput);
     }

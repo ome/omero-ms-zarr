@@ -18,9 +18,9 @@ dependencies {
     implementation 'io.vertx:vertx-core:3.9.0'
     implementation 'io.vertx:vertx-web:3.9.0'
 
-    implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.228')
-    implementation 'com.amazonaws:aws-java-sdk-s3'
-    implementation 'com.amazonaws:aws-java-sdk-sts'
+    implementation platform('software.amazon.awssdk:bom:2.11.10')
+//    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:sts'
     implementation 'commons-cli:commons-cli:1.4'
 }
 
