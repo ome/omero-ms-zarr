@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
+}
+
+repositories {
+    maven {
+        url = 'http://artifacts.openmicroscopy.org/artifactory/maven'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.openmicroscopy:omero-server:5.5.6'
+    implementation 'com.google.guava:guava:27.1-jre'
+    implementation 'io.vertx:vertx-core:3.9.0'
+    implementation 'io.vertx:vertx-web:3.9.0'
+}
+
+group = 'org.openmicroscopy'
+version = '0.1.0-SNAPSHOT'
+description = 'omero-ms-zarr'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+mainClassName = "org.openmicroscopy.ms.zarr.ZarrDataService"
+
+shadowJar {
+    zip64 true
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
