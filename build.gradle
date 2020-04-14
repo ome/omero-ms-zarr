@@ -9,9 +9,7 @@ repositories {
     maven {
         url = 'http://artifacts.openmicroscopy.org/artifactory/maven'
     }
-    maven {
-        url = 'http://repo.maven.apache.org/maven2'
-    }
+    mavenCentral()
 }
 
 dependencies {
