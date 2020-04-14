@@ -128,6 +128,7 @@ public class S3TokenCreator {
                 "," + dquote("aws_access_key_id") + ":" + dquote(result.credentials().accessKeyId()) +
                 "," + dquote("aws_secret_access_key") + ":" + dquote(result.credentials().secretAccessKey()) +
                 "," + dquote("aws_session_token") + ":" + dquote(result.credentials().sessionToken()) +
+                "," + dquote("expiration") + ":" + dquote(result.credentials().expiration().toString()) +
                 "}";
         System.out.println(jsonOutput);
     }

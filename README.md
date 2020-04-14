@@ -38,3 +38,13 @@ For example, using Java properties, this will create a token for all objects (`*
         org.openmicroscopy.s3.S3TokenCreator \
         -endpoint http://localhost:9000 -bucket tmp -prefix '*'
 
+Example output:
+
+    {
+      "endpoint_url": "http://localhost:9000",
+      "region_name": "",
+      "aws_access_key_id": "1234567890ABCDEFGHIJ",
+      "aws_secret_access_key": "1234567890abcefghijklmnopqrdstuvxwzABCDE"
+      "aws_session_token": "1234567890abcefghijklmnopqrdstuvxwzA.BCDEFGHIJKLMNOPQRSTUVWXYZ",
+      "expiration": "2020-04-14T17:00:00Z"
+    }
