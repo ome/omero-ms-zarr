@@ -12,16 +12,25 @@ import static com.google.common.base.Strings.nullToEmpty;
 
 
 /**
- * A simple connection to an OMERO server using the Java gateway
+ * Create temporary access tokens for S3 buckets and prefixes
  *
  * @author The OME Team
  */
 public class S3TokenCreator {
 
     /**
+     * Double quote a string so it can be used as a JSON key or value
+     * @param s String to be quoted
+     * @return A double-quoted JSON string value
+     */
+    private static String d(String s) {
+        return '"' + s.replace("\"", "\\\"") + '"';
+    }
+
+    /**
      * Create a JSON policy string
-     * @param bucket
-     * @param prefix
+     * @param bucket The bucket
+     * @param prefix The prefix for matching objects in the bucket
      * @return Policy as a JSON string
      */
     private String getPolicy(String bucket, String prefix) {
@@ -30,22 +39,22 @@ public class S3TokenCreator {
         // https://aws.amazon.com/premiumsupport/knowledge-center/s3-folder-user-access/
 
         String policyTemplate = "{" +
-                "\"Version\": \"2012-10-17\"," +
-                "\"Statement\": [" +
+            d("Version") + ":" + d("2012-10-17") + "," +
+            d("Statement") + ":[" +
                 "{" +
-                    "\"Sid\": \"ListObjectsInBucket\"," +
-                    "\"Effect\": \"Allow\"," +
-                    "\"Action\": \"s3:ListBucket\"," +
-                    "\"Resource\": [\"arn:aws:s3:::%s\"]," + // bucket
-                    "\"Condition\": {" +
-                        "\"StringLike\": { \"s3:prefix\": [\"%s\"]}" + // prefix
+                    d("Sid") + ":" + d("ListObjectsInBucket") + "," +
+                    d("Effect") + ":" + d("Allow") + "," +
+                    d("Action") + ":" + d("s3:ListBucket") + "," +
+                    d("Resource") + ":[" + d("arn:aws:s3:::%s") + "]," + // bucket
+                    d("Condition") + ":{" +
+                        d("StringLike") + ":{" + d("s3:prefix") + ":[" + d("%s") + "]}" + // prefix
                     "}" +
                 "}," +
                 "{" +
-                    "\"Sid\": \"GetObjectsInBucket\"," +
-                        "\"Effect\": \"Allow\"," +
-                        "\"Action\": \"s3:GetObject\"," +
-                        "\"Resource\": [\"arn:aws:s3:::%s/%s\"]" + // bucket prefix
+                    d("Sid") + ":" + d("GetObjectsInBucket") + "," +
+                    d("Effect") + ":" + d("Allow") + "," +
+                    d("Action") + ":" + d("s3:GetObject") + "," +
+                    d("Resource") + ":[" + d("arn:aws:s3:::%s/%s") + "]" + // bucket prefix
                 "}" +
             "]" +
         "}";
@@ -53,6 +62,14 @@ public class S3TokenCreator {
         return String.format(policyTemplate, bucket, prefix, bucket, prefix);
     }
 
+    /**
+     * Request a new session token from the server that allows temporary access to objects in a bucket
+     * @param endpoint The STS server endpoint
+     * @param region The region, can be empty
+     * @param bucket The bucket
+     * @param prefix The prefix for matching objects in the bucket
+     * @return Temporary access tokens
+     */
     public AssumeRoleResponse createToken(URI endpoint, String region, String bucket, String prefix) {
         StsClientBuilder builder = StsClient.builder();
         if (endpoint != null) {
@@ -80,10 +97,6 @@ public class S3TokenCreator {
         Option option = new Option(opt, true, help);
         option.setRequired(required);
         options.addOption(option);
-    }
-
-    private static String dquote(String s) {
-        return '"' + s.replace("\"", "\\\"") + '"';
     }
 
     /**
@@ -123,12 +136,12 @@ public class S3TokenCreator {
                 nullToEmpty(cmd.getOptionValue("prefix")));
 
         String jsonOutput =
-                "{" + dquote("endpoint_url") + ":" + dquote(endpoint) +
-                "," + dquote("region_name") + ":" + dquote(region) +
-                "," + dquote("aws_access_key_id") + ":" + dquote(result.credentials().accessKeyId()) +
-                "," + dquote("aws_secret_access_key") + ":" + dquote(result.credentials().secretAccessKey()) +
-                "," + dquote("aws_session_token") + ":" + dquote(result.credentials().sessionToken()) +
-                "," + dquote("expiration") + ":" + dquote(result.credentials().expiration().toString()) +
+                "{" + d("endpoint_url") + ":" + d(endpoint) +
+                "," + d("region_name") + ":" + d(region) +
+                "," + d("aws_access_key_id") + ":" + d(result.credentials().accessKeyId()) +
+                "," + d("aws_secret_access_key") + ":" + d(result.credentials().secretAccessKey()) +
+                "," + d("aws_session_token") + ":" + d(result.credentials().sessionToken()) +
+                "," + d("expiration") + ":" + d(result.credentials().expiration().toString()) +
                 "}";
         System.out.println(jsonOutput);
     }
