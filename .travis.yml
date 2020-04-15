@@ -8,5 +8,6 @@ cache:
     - $HOME/.gradle/wrapper/
 
 script:
+  - (cd ci && ./startminio.sh)
   - gradle check
   - gradle shadowJar
