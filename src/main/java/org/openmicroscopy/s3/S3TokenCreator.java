@@ -76,7 +76,7 @@ public class S3TokenCreator {
             builder.endpointOverride(endpoint);
             // If endpoint is set this means we're not using AWS S3, but the client requires a region even if it's ignored by the server
             if (region.isEmpty()) {
-                builder.region(Region.AWS_GLOBAL);
+                builder.region(Region.US_EAST_1);
             }
         }
         if (!region.isEmpty()) {
