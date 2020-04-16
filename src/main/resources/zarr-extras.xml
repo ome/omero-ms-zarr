@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN"
+  "http://www.springframework.org/dtd/spring-beans.dtd">
+
+<beans>
+
+  <!-- Set up read-only access to OMERO's resources. -->
+
+  <bean id="readOnlyStatus" class="ome.services.util.ReadOnlyStatus">
+    <constructor-arg value="true"/>
+    <constructor-arg value="true"/>
+  </bean>
+
+  <!-- Stub out much OMERO permissions checking. -->
+
+  <bean name="OneGroupSecurityFilter" class="org.openmicroscopy.ms.zarr.stub.NullFilterDefinition">
+    <constructor-arg value="OneGroupSecurityFilter"/>
+  </bean>
+  <bean name="AllGroupsSecurityFilter" class="org.openmicroscopy.ms.zarr.stub.NullFilterDefinition">
+    <constructor-arg value="AllGroupsSecurityFilter"/>
+  </bean>
+  <bean name="SharingSecurityFilter" class="org.openmicroscopy.ms.zarr.stub.NullFilterDefinition">
+    <constructor-arg value="SharingSecurityFilter"/>
+  </bean>
+  <bean name="LightAdminPrivilegesSecurityFilter" class="org.openmicroscopy.ms.zarr.stub.NullFilterDefinition">
+    <constructor-arg value="LightAdminPrivilegesSecurityFilter"/>
+  </bean>
+
+  <bean id="securityFilterHolder" class="org.openmicroscopy.ms.zarr.stub.NullSecurityFilterHolder">
+    <constructor-arg ref="currentDetails"/>
+  </bean>
+
+  <bean id="nullHandler" class="org.openmicroscopy.ms.zarr.stub.NullInterceptor"/>
+
+  <bean id="shareStore" class="org.openmicroscopy.ms.zarr.stub.NullShareStore"/>
+
+  <!-- Stub out unused but required beans. -->
+
+  <bean id="dbPatchCheck" class="java.lang.Object"/>
+
+  <bean id="fullTextIndexer" class="java.lang.Object"/>
+
+  <!-- Set up simple beans needed for OMERO's application context. -->
+
+  <bean id="dbUserCheck"
+     class="ome.services.util.DBUserCheck">
+     <constructor-arg ref="simpleSqlAction"/>
+     <constructor-arg ref="preferenceContext"/>
+     <constructor-arg ref="readOnlyStatus"/>
+  </bean>
+
+  <alias name="basicSecuritySystem" alias="securitySystem"/>
+  <bean id="basicSecuritySystem" class="ome.security.basic.BasicSecuritySystem">
+    <constructor-arg><null/></constructor-arg>
+    <constructor-arg ref="systemTypes"/>
+    <constructor-arg ref="currentDetails"/>
+    <constructor-arg ref="sessionManager"/>
+    <constructor-arg ref="sessionProvider"/>
+    <constructor-arg ref="eventProvider"/>
+    <constructor-arg ref="roles"/>
+    <constructor-arg ref="internalServiceFactory"/>
+    <constructor-arg ref="tokenHolder"/>
+    <constructor-arg>
+      <list>
+        <ref bean="securityFilterHolder"/>
+      </list>
+    </constructor-arg>
+    <constructor-arg><bean class="ome.security.policy.DefaultPolicyService"/></constructor-arg>
+    <constructor-arg><null/></constructor-arg>
+  </bean>
+
+  <alias name="interceptors" alias="statelessInterceptors"/>
+  <alias name="interceptors" alias="statefulInterceptors"/>
+  <bean id="interceptors" class="java.util.ArrayList">
+    <constructor-arg>
+      <list>
+        <value>serviceHandler</value>
+        <value>nullHandler</value>
+        <value>transactionHandler</value>
+        <value>hibernateHandler</value>
+        <value>nullHandler</value>
+      </list>
+    </constructor-arg>
+  </bean>
+
+  <bean id="hibernateProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean"
+        depends-on="configuredAnalyzer">
+    <property name="properties">
+      <props>
+        <prop key="hibernate.transaction.factory_class">org.springframework.orm.hibernate3.SpringTransactionFactory</prop>
+        <prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate3.SpringSessionContext</prop>
+        <prop key="hibernate.dialect">${omero.db.dialect}</prop>
+      </props>
+    </property>
+  </bean>
+
+  <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="dataSource" ref="dataSource" />
+    <property name="configLocation" value="classpath:hibernate.cfg.xml" />
+    <property name="hibernateProperties" ref="hibernateProperties"/>
+    <property name="filterDefinitions">
+      <list>
+        <ref bean="OneGroupSecurityFilter"/>
+        <ref bean="AllGroupsSecurityFilter"/>
+        <ref bean="SharingSecurityFilter"/>
+        <ref bean="LightAdminPrivilegesSecurityFilter"/>
+      </list>
+    </property>
+  </bean>
+
+  <alias name="${omero.metrics.bean}" alias="metrics"/>
+
+  <bean id="defaultMetrics" class="ome.system.metrics.DefaultMetrics">
+    <property name="slf4jMinutes" value="${omero.metrics.slf4j_minutes}"/>
+    <property name="beginsWith">
+      <list><value>ome.ms.zarr</value></list>
+    </property>
+    <property name="graphiteAddress" value="${omero.metrics.graphite}"/>
+  </bean>
+
+  <!-- Now have enough to set up the pixels service. -->
+
+  <bean name="/OMERO/Pixels" class="ome.io.nio.PixelsService" parent="filesystem">
+    <constructor-arg value="${omero.pixeldata.memoizer.dir}"/>
+    <constructor-arg ref="MemoizerWait"/>
+    <constructor-arg ref="omeroFilePathResolver"/>
+    <constructor-arg ref="backOff"/>
+    <constructor-arg ref="tileSizes"/>
+    <constructor-arg index="7"><null/></constructor-arg>  <!-- no query service -->
+    <property name="metrics" ref="metrics"/>
+    <property name="memoizerDirectoryLocal" value="${omero.pixeldata.memoizer.dir.local}"/>
+  </bean>
+
+</beans>

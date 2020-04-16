@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 University of Dundee & Open Microscopy Environment.
+ * Copyright (C) 2018-2020 University of Dundee & Open Microscopy Environment.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,35 +19,37 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-
-import javax.sql.DataSource;
+import org.hibernate.SessionFactory;
 
 import io.vertx.core.Context;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
+import ome.io.nio.PixelsService;
 
 /**
- * Set up HTTP endpoint with JDBC connection.
+ * Set up HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrDataVerticle implements Verticle {
 
-    private final DataSource dataSource;
+    private final SessionFactory sessionFactory;
+    private final PixelsService pixelsService;
 
     private Vertx vertx;
-    private Context context;  // unused
 
-    private Connection connection;
+    @SuppressWarnings("unused")
+    private Context context;
+
     private HttpServer server;
 
-    public ZarrDataVerticle(DataSource dataSource) {
-        this.dataSource = dataSource;
+    public ZarrDataVerticle(SessionFactory sessionFactory, PixelsService pixelsService) {
+        this.sessionFactory = sessionFactory;
+        this.pixelsService = pixelsService;
     }
 
     @Override
@@ -62,33 +64,37 @@ public class ZarrDataVerticle implements Verticle {
     }
 
     /**
-     * Starts the verticle: gets a JDBC connection and listens on HTTP port 8080.
-     * The verticle includes no logic for retrying a lost JDBC connection
-     * @param future for reporting the outcome
-     * @throws SQLException if a JDBC connection could not be obtained
+     * Starts the verticle and listens on HTTP port 8080.
+     * @param promise for reporting the outcome
      */
     @Override
-    public void start(Future<Void> future) throws SQLException {
-        /* obtain JDBC connection */
-        connection = dataSource.getConnection();
+    public void start(Promise<Void> promise) {
         /* listen for queries over HTTP */
         final Router router = Router.router(vertx);
         server = vertx.createHttpServer(new HttpServerOptions().setPort(8080));
-        server.requestHandler(router::accept);
-        new RequestHandlerForId(connection).handleFor(router, "/id");
+        server.requestHandler(router);
+        new RequestHandlerForImage(sessionFactory, pixelsService).handleFor(router, "/image");
         server.listen();  // does not yet handle failure
-        future.complete();
+        promise.complete();
     }
 
     /**
-     * Closes the JDBC connection and the HTTP server.
-     * @param future for reporting the outcome
-     * @throws SQLException if the JDBC connection could not be closed
+     * Stops the HTTP server.
+     * @param promise for reporting the outcome
      */
     @Override
-    public void stop(Future<Void> future) throws SQLException {
-        connection.close();
+    public void stop(Promise<Void> promise) {
         server.close();
-        future.complete();
+        promise.complete();
+    }
+
+    @Override
+    public void start(Future<Void> startFuture) {
+        throw new UnsupportedOperationException("obsolete in later Vert.x");
+    }
+
+    @Override
+    public void stop(Future<Void> stopFuture) {
+        throw new UnsupportedOperationException("obsolete in later Vert.x");
     }
 }

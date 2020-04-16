@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 University of Dundee & Open Microscopy Environment.
+ * Copyright (C) 2018-2020 University of Dundee & Open Microscopy Environment.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,17 +24,18 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-import javax.sql.DataSource;
-
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
+import ome.io.nio.PixelsService;
 
+import org.hibernate.SessionFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * Microservice providing JDBC queries over a HTTP endpoint.
+ * Microservice providing image data over a HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrDataService {
@@ -55,13 +56,15 @@ public class ZarrDataService {
             }
             propertiesSystem.putAll(propertiesNew);
         }
-        /* start up OMERO.server's data layer and obtain its dataSource bean for JDBC */
+        /* start up enough of OMERO.server to operate the pixels service */
         final AbstractApplicationContext zarrContext = new ClassPathXmlApplicationContext("zarr-context.xml");
         final ApplicationContext omeroContext = zarrContext.getBean("zarr.data", ApplicationContext.class);
-        final DataSource dataSource = omeroContext.getBean("nonXaDataSource", DataSource.class);
-        /* deploy the verticle which uses OMERO's data source */
+        final SessionFactory sessionFactory = omeroContext.getBean("sessionFactory", SessionFactory.class);
+        final PixelsService pixelsService = omeroContext.getBean("/OMERO/Pixels", PixelsService.class);
+        /* deploy the verticle which uses the pixels service */
         final Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new ZarrDataVerticle(dataSource), (AsyncResult<String> result) -> {
+        final Verticle verticle = new ZarrDataVerticle(sessionFactory, pixelsService);
+        vertx.deployVerticle(verticle, (AsyncResult<String> result) -> {
             zarrContext.close();
         });
     }
