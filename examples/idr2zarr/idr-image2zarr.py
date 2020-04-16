@@ -7,6 +7,12 @@ import sys
 import zarr
 from omero.gateway import BlitzGateway
 
+
+def get_chunk_size(x, y, z, c, t):
+    # return (x, y, 5, 1, 5)
+    return (x, y, 1, 1, 1)
+
+
 if len(sys.argv) != 2:
     print('IDR image ID required')
     sys.exit(2)
@@ -53,12 +59,13 @@ for k, v in lastd.items():
     lastd[k] = int(v)
 
 first = np.load(files[0])
-chunksize = (first.shape[0], first.shape[0], 5, 1, 5)
+chunksize = get_chunk_size(first.shape[0], first.shape[1],
+                           lastd['z'] + 1, lastd['c'] + 1, lastd['t'] + 1)
 
 za = zarr.open(
     output,
     mode='w',
-    shape=(first.shape[0], first.shape[0],
+    shape=(first.shape[0], first.shape[1],
            lastd['z'] + 1, lastd['c'] + 1, lastd['t'] + 1),
     chunks=chunksize,
     dtype=first.dtype)
