@@ -28,8 +28,8 @@ def get_planes(image):
 
     zct_list = []
     for c in range(size_c):
-        for z in range(size_z):
-            for t in range(size_t):
+        for t in range(size_t):
+            for z in range(size_z):
                 zct_list.append( (z,c,t) )
 
     def plane_gen():
@@ -56,15 +56,16 @@ def image_to_xarray(image):
 
     xr_data = {}
     for c in range(size_c):
-        z_stack = []
-        for z in range(size_z):
-            t_stack = []
-            for t in range(size_t):
-                t_stack.append(next(planes))
-            z_stack.append(numpy.array(t_stack))
-        z_stack = numpy.array(z_stack)
-        print('z_stack', z_stack.shape)
-        xr_data[str(c)] = (('z', 't', 'y', 'x'), z_stack)
+        t_stacks = []
+        for t in range(size_t):
+            z_stack = []
+            for z in range(size_z):
+                print('plane c:%s, t:%s, z:%s' % (c, t, z))
+                z_stack.append(next(planes))
+            t_stacks.append(numpy.array(z_stack))
+        t_stacks = numpy.array(t_stacks)
+        print('t_stacks', t_stacks.shape)
+        xr_data[str(c)] = (('t', 'z', 'y', 'x'), t_stacks)
     ds = xr.Dataset(xr_data)
     ds.to_zarr(name)
     print("Created", name)
