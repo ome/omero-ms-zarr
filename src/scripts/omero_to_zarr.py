@@ -19,34 +19,32 @@ import zarr
 # $ python omero_to_zarr.py 123 --xarray
 # creates 123_xarray.zarr
 
+def get_planes(image):
 
-def get_data(img, c=0):
-    """
-    Get n-dimensional numpy array of pixel data for the OMERO image.
+    size_c = image.getSizeC()
+    size_z = image.getSizeZ()
+    size_t = image.getSizeT()
+    pixels = image.getPrimaryPixels()
 
-    :param  img:        omero.gateway.ImageWrapper
-    :c      int:        Channel index
-    """
-    sz = img.getSizeZ()
-    st = img.getSizeT()
-    # get all planes we need
-    zct_list = [(z, c, t) for t in range(st) for z in range(sz)]
-    pixels = img.getPrimaryPixels()
-    planes = []
-    for p in pixels.getPlanes(zct_list):
-        planes.append(p)
-    # If we don't have multi-Z AND multi-T, return a 1D array of 2D planes
-    if sz == 1 or st == 1:
-        return numpy.array(planes)
-    # arrange plane list into 2D numpy array of planes
-    z_stacks = []
-    for t in range(st):
-        z_stacks.append(numpy.array(planes[t * sz: (t + 1) * sz]))
-    return numpy.array(z_stacks)
+    zct_list = []
+    for c in range(size_c):
+        for z in range(size_z):
+            for t in range(size_t):
+                zct_list.append( (z,c,t) )
 
+    def plane_gen():
+        planes = pixels.getPlanes(zct_list)
+        for p in planes:
+            yield p
+    
+    return plane_gen()
 
 def image_to_xarray(image):
-    
+
+    size_c = image.getSizeC()
+    size_z = image.getSizeZ()
+    size_t = image.getSizeT()
+
     name = '%s_xarray.zarr' % image.id
     if os.path.exists(name):
         # If exists, ds.to_zarr(name) will fail with: ValueError: path '' contains a group
@@ -54,16 +52,22 @@ def image_to_xarray(image):
         return
     xr_data = {}
 
-    # we create an xarrary.Dataset: each key is channel index (as string)
-    for idx in range(image.getSizeC()):
-        print(idx)
-        # get e.g. 3D np array for each channel
-        data = get_data(image, c=idx)
-        print(data.shape)
-        xr_data[str(idx)] = (('z', 'y', 'x'), data)
+    planes = get_planes(image)
 
+    xr_data = {}
+    for c in range(size_c):
+        z_stack = []
+        for z in range(size_z):
+            t_stack = []
+            for t in range(size_t):
+                t_stack.append(next(planes))
+            z_stack.append(numpy.array(t_stack))
+        z_stack = numpy.array(z_stack)
+        print('z_stack', z_stack.shape)
+        xr_data[str(c)] = (('z', 't', 'y', 'x'), z_stack)
     ds = xr.Dataset(xr_data)
     ds.to_zarr(name)
+    print("Created", name)
 
 
 def image_to_zarr(image):
@@ -106,6 +110,7 @@ def image_to_zarr(image):
                     )
                 print(plane.shape)
                 za[c, z, t, :, :] = plane
+    print("Created", name)
 
 
 def main(argv):
