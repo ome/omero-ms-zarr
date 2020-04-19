@@ -17,6 +17,13 @@ dependencies {
     implementation 'com.google.guava:guava:27.1-jre'
     implementation 'io.vertx:vertx-core:3.9.0'
     implementation 'io.vertx:vertx-web:3.9.0'
+
+    implementation platform('software.amazon.awssdk:bom:2.11.10')
+    implementation 'software.amazon.awssdk:sts'
+    implementation 'commons-cli:commons-cli:1.4'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.6.2'
+    testImplementation 'software.amazon.awssdk:s3'
 }
 
 group = 'org.openmicroscopy'
@@ -43,4 +50,11 @@ publishing {
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 }
