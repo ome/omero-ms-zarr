@@ -57,9 +57,10 @@ def image_to_zarr(image):
                     plane = next(planes)
                     numpy.save(filename, plane)
                 if za is None:
-                    za = zarr.open(
-                        name,
-                        mode='w',
+                    store = zarr.NestedDirectoryStore(name)
+                    root = zarr.group(store=store, overwrite=True)
+                    za = root.create(
+                        '0',
                         shape=(size_t, size_c, size_z, size_y, size_x),
                         chunks=(1, 1, 1, size_y, size_x),
                         dtype=plane.dtype
