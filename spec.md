@@ -21,6 +21,10 @@ for public re-use.
                         └── 0 #
 ```
 
+
+see also:
+ - [Multiscale metadata spec](https://github.com/zarr-developers/zarr-specs/issues/50)
+
 | Revision | Date       | Description                              |
 |----------|------------|------------------------------------------|
 | 0.1      | 2020-04-20 | First version for internal demo          |
