@@ -14,11 +14,9 @@ for public re-use.
     ├── .zgroup               # Each image is a Zarr group with multscale metadata.
     └── 0                     # Each multiscale level is stored as a separate Zarr array.
         ├── .zarray           #
-        └── 0                 # Chunks are stored with the nested directory layout.
-            └── 0             #
-                └── 0         # All image arrays are 5-dimensional
-                    └── 0     # with dimension order (t, c, z, y, x).
-                        └── 0 #
+        ├── 0.0.0.0.0         # Chunks are stored with the flat directory layout.
+        └── t.c.z.y.x         # All image arrays are 5-dimensional
+                              # with dimension order (t, c, z, y, x).
 ```
 
 
