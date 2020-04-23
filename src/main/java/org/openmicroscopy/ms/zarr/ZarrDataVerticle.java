@@ -73,7 +73,7 @@ public class ZarrDataVerticle implements Verticle {
         final Router router = Router.router(vertx);
         server = vertx.createHttpServer(new HttpServerOptions().setPort(8080));
         server.requestHandler(router);
-        new RequestHandlerForImage(sessionFactory, pixelsService).handleFor(router, "/image");
+        new RequestHandlerForImage(sessionFactory, pixelsService, "/image").handleFor(router);
         server.listen();  // does not yet handle failure
         promise.complete();
     }
