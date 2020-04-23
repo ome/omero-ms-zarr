@@ -155,8 +155,9 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      */
     private static class DataShape {
         final int xSize, ySize, cSize, zSize, tSize;
-        final int xTile, yTile;
         final int byteWidth;
+
+        int xTile, yTile;
 
         /**
          * @param buffer the pixel buffer from which to extract the dimensionality
@@ -179,8 +180,34 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
 
             byteWidth = buffer.getByteWidth();
         }
+
+        /**
+         * Attempt to increase the <em>X</em>, <em>Y</em> tile size so the tile occupies at least the given number of bytes.
+         * @param target the minimum target size, in bytes
+         * @return this, for method chaining
+         */
+        DataShape adjustTileSize(int target) {
+            final int pixelTarget = target / byteWidth;
+            while ((long) xTile * yTile < pixelTarget) {
+                final boolean isIncreaseX = xTile < xSize;
+                final boolean isIncreaseY = yTile < ySize;
+                if (isIncreaseX && xTile * 3 >= xSize) {
+                    xTile = xSize;
+                } else if (isIncreaseY && yTile * 3 >= ySize) {
+                    yTile = ySize;
+                } else if (isIncreaseX) {
+                    xTile <<= 1;
+                } else if (isIncreaseY) {
+                    yTile <<= 1;
+                } else {
+                    break;
+                }
+            }
+            return this;
+        }
     }
 
+    private static final int CHUNK_SIZE_MINIMUM = 0x100000;
     private static final int DEFLATER_LEVEL = 6;
 
     private static final String REGEX_GROUP = "/(\\d+)/\\.zgroup";
@@ -420,7 +447,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                 fail(response, 404, "no image for that id and resolution");
                 return;
             }
-            shape = new DataShape(buffer);
+            shape = new DataShape(buffer).adjustTileSize(CHUNK_SIZE_MINIMUM);
             final int xd = Math.min(shape.xSize, shape.xTile);
             final int yd = Math.min(shape.ySize, shape.yTile);
             final PixelData tile = buffer.getTile(0, 0, 0, 0, 0, xd, yd);
@@ -475,7 +502,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                 fail(response, 404, "no image for that id");
                 return;
             }
-            final DataShape shape = new DataShape(buffer);
+            final DataShape shape = new DataShape(buffer).adjustTileSize(CHUNK_SIZE_MINIMUM);
             final int x = shape.xTile * chunkId.get(4);
             final int y = shape.yTile * chunkId.get(3);
             final int z = chunkId.get(2);
