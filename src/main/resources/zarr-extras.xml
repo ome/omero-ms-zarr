@@ -90,6 +90,8 @@
         <prop key="hibernate.transaction.factory_class">org.springframework.orm.hibernate3.SpringTransactionFactory</prop>
         <prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate3.SpringSessionContext</prop>
         <prop key="hibernate.dialect">${omero.db.dialect}</prop>
+        <prop key="hibernate.search.default.indexBase">${omero.data.dir}</prop>
+        <prop key="hibernate.search.default.locking_strategy">${omero.search.locking_strategy}</prop>
       </props>
     </property>
   </bean>
