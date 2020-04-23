@@ -63,14 +63,18 @@ for dataset in datasets:
     chunks = zarray['chunks']
     ranges = [range(0, -(-s // c)) for (s, c) in zip(shape, chunks)]
     for chunk in itertools.product(*ranges):
-        response = requests.get(dataset_uri + '/'.join(map(str, chunk)))
+        chunk_name_server = '.'.join(map(str, chunk))  # flat remotely
+        chunk_name_client = '.'.join(map(str, chunk))  # flat locally
+        response = requests.get(dataset_uri + chunk_name_server)
         if response.status_code == 200:
-            filename = local_prefix + '/'.join(map(str, chunk))
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            filename = local_prefix + chunk_name_client
+            parent_dir = os.path.dirname(filename)
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
             with open(filename, 'wb') as file:
                 file.write(response.content)
         else:
-            print('failed to fetch chunk {}'.format('.'.join(chunk)))
+            print('failed to fetch chunk {}'.format(chunk_name_server))
             sys.exit(2)
 
     print(json.dumps(zarray), file=open(local_prefix + '.zarray', 'w'))
