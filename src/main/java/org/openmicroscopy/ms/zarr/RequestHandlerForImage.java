@@ -36,7 +36,6 @@ import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
 import io.vertx.core.Handler;
@@ -213,7 +212,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
     private static final String REGEX_GROUP = "/(\\d+)/\\.zgroup";
     private static final String REGEX_ATTRS = "/(\\d+)/\\.zattrs";
     private static final String REGEX_ARRAY = "/(\\d+)/(\\d+)/\\.zarray";
-    private static final String REGEX_CHUNK = "/(\\d+)/(\\d+)/(\\d+(\\/\\d+)*)";
+    private static final String REGEX_CHUNK = "/(\\d+)/(\\d+)/(\\d+([/.]\\d+)*)";
 
     private static final Pattern PATTERN_GROUP = Pattern.compile(REGEX_GROUP);
     private static final Pattern PATTERN_ATTRS = Pattern.compile(REGEX_ATTRS);
@@ -294,7 +293,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                     final long imageId = Long.parseLong(matcher.group(1));
                     final int resolution = Integer.parseInt(matcher.group(2));
                     final ImmutableList.Builder<Integer> chunkId = ImmutableList.builder();
-                    for (final String integerText : Splitter.on('/').split(matcher.group(3))) {
+                    for (final String integerText : matcher.group(3).split("[/.]")) {
                         chunkId.add(Integer.parseInt(integerText));
                     }
                     returnChunk(response, imageId, resolution, chunkId.build());
