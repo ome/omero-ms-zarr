@@ -57,7 +57,7 @@ def image_to_zarr(image):
                     plane = next(planes)
                     numpy.save(filename, plane)
                 if za is None:
-                    store = zarr.NestedDirectoryStore(name)
+                    store = zarr.DirectoryStore(name)
                     root = zarr.group(store=store, overwrite=True)
                     za = root.create(
                         '0',
