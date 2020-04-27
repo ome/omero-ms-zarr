@@ -63,10 +63,10 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * Cache open {@link PixelBuffer} instances given the likelihood of repeated calls.
      * @author m.t.b.carroll@dundee.ac.uk
      */
-    private class PixelBufferCache {
+    class PixelBufferCache {
 
         /* How many pixel buffers to keep open. Different resolutions count as different buffers. */
-        private static final int CAPACITY = 16;
+        static final int CAPACITY = 16;
 
         /* An open pixel buffer set to a specific image and resolution. */
         private class Entry {
@@ -158,7 +158,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * Contains the dimensionality of an image.
      * @author m.t.b.carroll@dundee.ac.uk
      */
-    private static class DataShape {
+    static class DataShape {
         final int xSize, ySize, cSize, zSize, tSize;
         final int byteWidth;
 
@@ -225,7 +225,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
     private static final Pattern PATTERN_ARRAY = Pattern.compile(REGEX_ARRAY);
     private static final Pattern PATTERN_CHUNK = Pattern.compile(REGEX_CHUNK);
 
-    private final PixelBufferCache cache = new PixelBufferCache();
+    final PixelBufferCache cache = new PixelBufferCache();
 
     private final PixelsService pixelsService;
     private final SessionFactory sessionFactory;
