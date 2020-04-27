@@ -27,19 +27,20 @@ import requests
 import sys
 import argparse
 
-parser = argparse.ArgumentParser(
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dry-run", action="store_true",
     help="Don't actually download. Only check for existence")
 parser.add_argument(
     "--endpoint_url",
     default="https://s3.embassy.ebi.ac.uk/",
-    help="Choose which service for download")
+    help=("Choose which service for download"
+          " [%(default)s]"))
 parser.add_argument(
     "--url_format",
     default="{url}idr/zarr/v0.1/{image}.zarr/",
-    help="Format for the layout of URLs on the given service")
+    help=("Format for the layout of URLs on the given service"
+          " [%(default)s]"))
 parser.add_argument("image", type=int)
 args = parser.parse_args()
 
