@@ -118,6 +118,11 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             final PixelBuffer buffer = pixelsService.getPixelBuffer(pixels, false);
             final int resolutions = buffer.getResolutionLevels();
             if (resolution >= resolutions) {
+                try {
+                    buffer.close();
+                } catch (IOException ioe) {
+                    /* probably closed anyway */
+                }
                 return null;
             }
             buffer.setResolutionLevel(resolutions - resolution - 1);
