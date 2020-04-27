@@ -25,10 +25,27 @@ import json
 import os
 import requests
 import sys
+import argparse
 
-[_, server, port, image] = sys.argv
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument(
+    "--dry-run", action="store_true",
+    help="Don't actually download. Only check for existence")
+parser.add_argument(
+    "--endpoint_url",
+    default="https://s3.embassy.ebi.ac.uk/",
+    help="Choose which service for download")
+parser.add_argument(
+    "--url_format",
+    default="{url}idr/zarr/v0.1/{image}.zarr/",
+    help="Format for the layout of URLs on the given service")
+parser.add_argument("image", type=int)
+args = parser.parse_args()
 
-base_uri = 'http://{}:{}/image/{}/'.format(server, port, image)
+image = args.image
+url = args.endpoint_url
+base_uri = args.url_format.format(image=image, url=url)
 
 response = requests.get(base_uri + '.zgroup')
 if response.status_code == 200:
@@ -44,8 +61,13 @@ else:
     print('no image found at {}'.format(base_uri))
     sys.exit(2)
 
-datasets = zattrs['multiscales']['datasets']
-is_multiscale = len(datasets) > 1
+multiscales = zattrs['multiscales']
+is_multiscale = len(multiscales) > 0
+if is_multiscale:
+    # Use only the first
+    multiscale = multiscales[0]
+    datasets = multiscale["datasets"]
+
 
 for dataset in datasets:
     dataset_path = dataset['path'] + '/'
@@ -65,6 +87,14 @@ for dataset in datasets:
     for chunk in itertools.product(*ranges):
         chunk_name_server = '.'.join(map(str, chunk))  # flat remotely
         chunk_name_client = '.'.join(map(str, chunk))  # flat locally
+        if args.dry_run:
+            response = requests.head(dataset_uri + chunk_name_server)
+            if response.status_code != 200:
+                print('check failed for chunk {}'.format(chunk_name_server))
+                sys.exit(2)
+            continue
+
+
         response = requests.get(dataset_uri + chunk_name_server)
         if response.status_code == 200:
             filename = local_prefix + chunk_name_client
