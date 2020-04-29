@@ -53,7 +53,7 @@ public class PixelBufferFake implements PixelBuffer {
         final byte[] pixels = new byte[w * h * 2];
         for (int xi = 0; xi < w; xi++) {
             for (int yi = 0; yi < h; yi++) {
-                final int wordOffset = yi * w + xi;
+                final int wordOffset = 2 * (w * yi + xi);
                 pixels[wordOffset] = (byte) xi;
                 pixels[wordOffset + 1] = (byte) yi;
             }
