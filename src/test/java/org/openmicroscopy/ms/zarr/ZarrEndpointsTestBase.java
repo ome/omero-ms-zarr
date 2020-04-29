@@ -109,9 +109,9 @@ public abstract class ZarrEndpointsTestBase {
      * @param query the query arguments for the microservice
      * @return the URI at which the answer is found
      */
-    private static String getUriPath(String... query) {
+    private static String getUriPath(Object... query) {
         final StringBuilder path = new StringBuilder(URI_PATH_PREFIX);
-        for (final String element : query) {
+        for (final Object element : query) {
             path.append('/');
             path.append(element);
         }
@@ -123,7 +123,7 @@ public abstract class ZarrEndpointsTestBase {
      * @param query arguments for the microservice query
      * @return the microservice's response as JSON
      */
-    protected JsonObject getResponseAsJson(String... query) {
+    protected JsonObject getResponseAsJson(Object... query) {
         Mockito.when(httpRequest.path()).thenReturn(getUriPath(query));
         handler.handle(context);
         final ArgumentCaptor<String> responseLengthCaptor = ArgumentCaptor.forClass(String.class);
@@ -143,7 +143,7 @@ public abstract class ZarrEndpointsTestBase {
      * @param query arguments for the microservice query
      * @return the microservice's response as bytes
      */
-    protected byte[] getResponseAsBytes(String... query) {
+    protected byte[] getResponseAsBytes(Object... query) {
         Mockito.when(httpRequest.path()).thenReturn(getUriPath(query));
         handler.handle(context);
         final ArgumentCaptor<String> responseLengthCaptor = ArgumentCaptor.forClass(String.class);
@@ -165,7 +165,7 @@ public abstract class ZarrEndpointsTestBase {
     protected Stream<Arguments> provideGroupDetails() throws IOException {
         mockSetup();
         final Stream.Builder<Arguments> details = Stream.builder();
-        Mockito.when(httpRequest.path()).thenReturn(getUriPath("0", ".zattrs"));
+        Mockito.when(httpRequest.path()).thenReturn(getUriPath(0, ".zattrs"));
         handler.handle(context);
         final JsonObject response = getResponseAsJson();
         final JsonArray multiscales = response.getJsonArray("multiscales");

@@ -58,7 +58,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
      */
     @Test
     public void testZarrGroup() {
-        final JsonObject response = getResponseAsJson("0", ".zgroup");
+        final JsonObject response = getResponseAsJson(0, ".zgroup");
         assertNoExtraKeys(response, "zarr_format");
         Assertions.assertEquals(2, response.getInteger("zarr_format"));
     }
@@ -68,7 +68,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
      */
     @Test
     public void testZarrAttrs() {
-        final JsonObject response = getResponseAsJson("0", ".zattrs");
+        final JsonObject response = getResponseAsJson(0, ".zattrs");
         assertNoExtraKeys(response, "multiscales");
         final JsonArray multiscales = response.getJsonArray("multiscales");
         Assertions.assertEquals(1, multiscales.size());
@@ -105,7 +105,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
     @ParameterizedTest
     @MethodSource("provideGroupDetails")
     public void testZarrArray(int resolution, String path, Double scale) throws IOException {
-        final JsonObject response = getResponseAsJson("0", path, ".zarray");
+        final JsonObject response = getResponseAsJson(0, path, ".zarray");
         assertNoExtraKeys(response, "chunks", "compressor", "dtype", "fill_value", "filters", "order", "shape", "zarr_format");
         Assertions.assertEquals(2, response.getInteger("zarr_format"));
         Assertions.assertTrue(response.containsKey("fill_value"));
