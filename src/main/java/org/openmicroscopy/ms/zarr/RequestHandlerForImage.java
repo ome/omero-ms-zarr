@@ -43,6 +43,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -426,9 +427,11 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             }
             datasets.add(dataset);
         }
-        final Map<String, Object> multiscales = new HashMap<>();
-        multiscales.put("version", "0.1");
-        multiscales.put("datasets", datasets);
+        final Map<String, Object> multiscale = new HashMap<>();
+        multiscale.put("version", "0.1");
+        multiscale.put("datasets", datasets);
+        final JsonArray multiscales = new JsonArray();
+        multiscales.add(multiscale);
         final Map<String, Object> result = new HashMap<>();
         result.put("multiscales", multiscales);
         respondWithJson(response, new JsonObject(result));
