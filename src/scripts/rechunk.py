@@ -45,14 +45,14 @@ def main():
                         help="array to copy from. must exist.")
     parser.add_argument("target_array",
                         help="array to write to. may not exist.")
-    parser.add_argument("chunks", default="1,1,1,1024,1024")
+    parser.add_argument("chunks", default="1,1,1,1024,1024",
                         help=("comma-separated string of chunk sizes "
                               "(e.g. %(default)s)"))
     args = parser.parse_args()
 
     if args.distributed:
         from dask.distributed import Client
-        client = Client()
+        client = Client()  # noqa
         input("Visit http://localhost:8787/status - Press Enter to continue...")
 
     chunks = [int(x) for x in args.chunks.split(",")]
