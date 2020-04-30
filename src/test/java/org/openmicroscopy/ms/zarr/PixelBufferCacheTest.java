@@ -243,7 +243,7 @@ public class PixelBufferCacheTest {
             Mockito.verify(buffer, Mockito.times(1)).close();
         }
         for (int image = expiryCount * 2; image < imageCount; image++) {
-            /* The images's buffers falling later in the above loops remain unexpired. */
+            /* The images' buffers falling later in the above loops remain unexpired. */
             final PixelBuffer buffer = originalBuffers.get(image);
             Mockito.verify(buffer, Mockito.never()).close();
         }
