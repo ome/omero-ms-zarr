@@ -32,12 +32,12 @@ parser.add_argument(
     "--dry-run", action="store_true",
     help="Don't actually download. Only check for existence")
 parser.add_argument(
-    "--endpoint_url",
+    "--endpoint-url",
     default="https://s3.embassy.ebi.ac.uk/",
     help=("Choose which service for download"
           " [%(default)s]"))
 parser.add_argument(
-    "--url_format",
+    "--url-format",
     default="{url}idr/zarr/v0.1/{image}.zarr/",
     help=("Format for the layout of URLs on the given service"
           " [%(default)s]"))
