@@ -45,9 +45,9 @@ def main():
                         help="array to copy from. must exist.")
     parser.add_argument("target_array",
                         help="array to write to. may not exist.")
-    parser.add_argument("chunks", default="1024,1024,1,1,1",
+    parser.add_argument("chunks", default="1,1,1,1024,1024")
                         help=("comma-separated string of chunk sizes "
-                              "(%(default)s)"))
+                              "(e.g. %(default)s)"))
     args = parser.parse_args()
 
     if args.distributed:
