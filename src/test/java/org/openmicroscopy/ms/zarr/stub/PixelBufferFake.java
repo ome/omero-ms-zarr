@@ -29,6 +29,8 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.jupiter.api.Assertions;
+
 import org.mockito.Mockito;
 
 /**
@@ -50,6 +52,8 @@ public class PixelBufferFake implements PixelBuffer {
 
     @Override
     public PixelData getTile(Integer z, Integer c, Integer t, Integer x, Integer y, Integer w, Integer h) {
+        Assertions.assertTrue(x >= 0 && w > 0 && x + w <= getSizeX());
+        Assertions.assertTrue(y >= 0 && h > 0 && y + h <= getSizeY());
         final byte[] pixels = new byte[w * h * 2];
         for (int xi = 0; xi < w; xi++) {
             for (int yi = 0; yi < h; yi++) {
