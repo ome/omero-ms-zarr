@@ -17,7 +17,7 @@ Put your OMERO server configuration into `etc/omero.properties`, run
 
 and try
 
-    src/scripts/post.py
+    src/scripts/fetch-ms-zarr.py -h
 
 
 ## Build jar with dependencies
