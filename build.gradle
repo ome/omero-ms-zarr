@@ -30,7 +30,7 @@ dependencies {
 }
 
 group = 'org.openmicroscopy'
-version = '0.1.0-SNAPSHOT'
+version = '0.1.0'
 description = 'omero-ms-zarr'
 
 java {
