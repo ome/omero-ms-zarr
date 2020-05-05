@@ -12,3 +12,4 @@ script:
   - export AWS_ACCESS_KEY_ID=stsadmin AWS_SECRET_ACCESS_KEY=stsadmin-secret
   - gradle check
   - gradle shadowJar
+  - docker build .
