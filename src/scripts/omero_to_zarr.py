@@ -2,7 +2,6 @@ import argparse
 import sys
 import os
 
-import omero.clients
 from omero.cli import cli_login
 from omero.gateway import BlitzGateway
 
