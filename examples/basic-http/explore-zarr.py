@@ -2,6 +2,7 @@
 
 import zarr
 from zarr.storage import FSStore
+
 store = FSStore("http://localhost:8000")
 group = zarr.group(store=store)
 print(group.attrs["example"])

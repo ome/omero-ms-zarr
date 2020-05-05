@@ -29,18 +29,22 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--dry-run", action="store_true",
-    help="Don't actually download. Only check for existence")
+    "--dry-run",
+    action="store_true",
+    help="Don't actually download. Only check for existence",
+)
 parser.add_argument(
     "--endpoint-url",
     default="https://s3.embassy.ebi.ac.uk/",
-    help=("Choose which service for download"
-          " [%(default)s]"))
+    help=("Choose which service for download" " [%(default)s]"),
+)
 parser.add_argument(
     "--url-format",
     default="{url}idr/zarr/v0.1/{image}.zarr/",
-    help=("Format for the layout of URLs on the given service"
-          " [%(default)s]"))
+    help=(
+        "Format for the layout of URLs on the given service" " [%(default)s]"
+    ),
+)
 parser.add_argument("image", type=int)
 args = parser.parse_args()
 
@@ -48,21 +52,21 @@ image = args.image
 url = args.endpoint_url
 base_uri = args.url_format.format(image=image, url=url)
 
-response = requests.get(base_uri + '.zgroup')
+response = requests.get(base_uri + ".zgroup")
 if response.status_code == 200:
     zgroup = response.json()
 else:
-    print('no image found at {}'.format(base_uri))
+    print("no image found at {}".format(base_uri))
     sys.exit(2)
 
-response = requests.get(base_uri + '.zattrs')
+response = requests.get(base_uri + ".zattrs")
 if response.status_code == 200:
     zattrs = response.json()
 else:
-    print('no image found at {}'.format(base_uri))
+    print("no image found at {}".format(base_uri))
     sys.exit(2)
 
-multiscales = zattrs['multiscales']
+multiscales = zattrs["multiscales"]
 is_multiscale = len(multiscales) > 0
 if is_multiscale:
     # Use only the first
@@ -71,30 +75,29 @@ if is_multiscale:
 
 
 for dataset in datasets:
-    dataset_path = dataset['path'] + '/'
+    dataset_path = dataset["path"] + "/"
     dataset_uri = base_uri + dataset_path
-    local_prefix = dataset_path if is_multiscale else ''
+    local_prefix = dataset_path if is_multiscale else ""
 
-    response = requests.get(dataset_uri + '.zarray')
+    response = requests.get(dataset_uri + ".zarray")
     if response.status_code == 200:
         zarray = response.json()
     else:
-        print('no resolution found at {}'.format(dataset_uri))
+        print("no resolution found at {}".format(dataset_uri))
         sys.exit(2)
 
-    shape = zarray['shape']
-    chunks = zarray['chunks']
+    shape = zarray["shape"]
+    chunks = zarray["chunks"]
     ranges = [range(0, -(-s // c)) for (s, c) in zip(shape, chunks)]
     for chunk in itertools.product(*ranges):
-        chunk_name_server = '.'.join(map(str, chunk))  # flat remotely
-        chunk_name_client = '.'.join(map(str, chunk))  # flat locally
+        chunk_name_server = ".".join(map(str, chunk))  # flat remotely
+        chunk_name_client = ".".join(map(str, chunk))  # flat locally
         if args.dry_run:
             response = requests.head(dataset_uri + chunk_name_server)
             if response.status_code != 200:
-                print('check failed for chunk {}'.format(chunk_name_server))
+                print("check failed for chunk {}".format(chunk_name_server))
                 sys.exit(2)
             continue
-
 
         response = requests.get(dataset_uri + chunk_name_server)
         if response.status_code == 200:
@@ -102,14 +105,14 @@ for dataset in datasets:
             parent_dir = os.path.dirname(filename)
             if parent_dir:
                 os.makedirs(parent_dir, exist_ok=True)
-            with open(filename, 'wb') as file:
+            with open(filename, "wb") as file:
                 file.write(response.content)
         else:
-            print('failed to fetch chunk {}'.format(chunk_name_server))
+            print("failed to fetch chunk {}".format(chunk_name_server))
             sys.exit(2)
 
-    print(json.dumps(zarray), file=open(local_prefix + '.zarray', 'w'))
+    print(json.dumps(zarray), file=open(local_prefix + ".zarray", "w"))
 
 if is_multiscale:
-    print(json.dumps(zgroup), file=open('.zgroup', 'w'))
-    print(json.dumps(zattrs), file=open('.zattrs', 'w'))
+    print(json.dumps(zgroup), file=open(".zgroup", "w"))
+    print(json.dumps(zattrs), file=open(".zattrs", "w"))

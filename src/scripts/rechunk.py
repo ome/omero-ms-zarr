@@ -10,13 +10,13 @@ def timeit(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
+        if "log_time" in kw:
+            name = kw.get("log_name", method.__name__.upper())
+            kw["log_time"][name] = int((te - ts) * 1000)
         else:
-            print('%r  %2.2f ms' %
-                  (method.__name__, (te - ts) * 1000))
+            print("%r  %2.2f ms" % (method.__name__, (te - ts) * 1000))
         return result
+
     return timed
 
 
@@ -37,34 +37,41 @@ def convert(resized, target_array):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dimensions", type=int, default="5", metavar="DIMS",
-                        help="number of chunks to parse (%(default)s)")
-    parser.add_argument("--distributed", action="store_true",
-                        help="enable distributed dashboard (%(default)s)")
-    parser.add_argument("source_array",
-                        help="array to copy from. must exist.")
-    parser.add_argument("target_array",
-                        help="array to write to. must not exist.")
-    parser.add_argument("chunks", default="1,1,1,1024,1024",
-                        help=("comma-separated string of chunk sizes "
-                              "(e.g. %(default)s)"))
+    parser.add_argument(
+        "--dimensions",
+        type=int,
+        default="5",
+        metavar="DIMS",
+        help="number of chunks to parse (%(default)s)",
+    )
+    parser.add_argument(
+        "--distributed",
+        action="store_true",
+        help="enable distributed dashboard (%(default)s)",
+    )
+    parser.add_argument("source_array", help="array to copy from. must exist.")
+    parser.add_argument(
+        "target_array", help="array to write to. must not exist."
+    )
+    parser.add_argument(
+        "chunks",
+        default="1,1,1,1024,1024",
+        help=("comma-separated string of chunk sizes " "(e.g. %(default)s)"),
+    )
     args = parser.parse_args()
 
     if args.distributed:
         from dask.distributed import Client
+
         client = Client()  # noqa
-        input("Visit http://localhost:8787/status - Press Enter to continue...")
+        input(
+            "Visit http://localhost:8787/status - Press Enter to continue..."
+        )
 
     chunks = [int(x) for x in args.chunks.split(",")]
     assert len(chunks) == args.dimensions
 
-    convert(
-        resize(
-            load(args.source_array),
-            chunks
-        ),
-        args.target_array
-    )
+    convert(resize(load(args.source_array), chunks), args.target_array)
 
     if args.distributed:
         input("Press Enter to exit...")
