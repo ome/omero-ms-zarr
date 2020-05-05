@@ -1,15 +1,28 @@
 language: java
-before_cache:
-  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
-cache:
-  directories:
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
 
-script:
-  - (cd ci && ./startminio.sh)
-  - export AWS_ACCESS_KEY_ID=stsadmin AWS_SECRET_ACCESS_KEY=stsadmin-secret
-  - gradle check
-  - gradle shadowJar
-  - docker build .
+jobs:
+  include:
+    # Default stage: test
+    - name: lint
+      language: python
+      install:
+        - python3 -mpip install pre-commit
+      script:
+        - pre-commit run --all-files
+    - name: java
+      before_cache:
+        - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+        - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+      cache:
+        directories:
+          - $HOME/.gradle/caches/
+          - $HOME/.gradle/wrapper/
+      script:
+        - (cd ci && ./startminio.sh)
+        - export AWS_ACCESS_KEY_ID=stsadmin AWS_SECRET_ACCESS_KEY=stsadmin-secret
+        - gradle check
+        - gradle shadowJar
+    - name: docker
+      language: generic
+      script:
+        - docker build .
