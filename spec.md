@@ -19,10 +19,29 @@ for public re-use.
                               # with dimension order (t, c, z, y, x).
 ```
 
+## Multiscale metadata
 
-see also:
- - [Multiscale metadata spec](https://github.com/zarr-developers/zarr-specs/issues/50)
+The specification for the multiscale (i.e. "resolution") metadata is provided
+in [zarr-specs#50](https://github.com/zarr-developers/zarr-specs/issues/50).
+If only one multiscale is provided, use it. Otherwise, the user can choose by
+name, using the first multiscale as a fallback:
+
+```
+datasets = []
+for named in multiscales:
+    if named['name'] == '3D':
+        datasets = [x['path'] for x in named["datasets"]]
+        break
+if not datasets:
+    # Use the first by default. Or perhaps choose based on chunk size.
+    datasets = [x['path'] for x in multiscales[0]["datasets"]]
+```
+
+The subresolutions in each multiscale are ordered from highest-resolution
+to lowest.
+
 
 | Revision | Date       | Description                              |
 |----------|------------|------------------------------------------|
+| -        | 2020-05-06 | Add info on the ordering of resolutions  |
 | 0.1      | 2020-04-20 | First version for internal demo          |
