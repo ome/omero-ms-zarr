@@ -22,6 +22,7 @@ and try
 
 ### Configuration
 
+In addition to your usual OMERO.server configuration
 `etc/omero.properties` may include:
 
 `omero.ms.zarr.buffer-cache.size`
