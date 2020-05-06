@@ -26,17 +26,14 @@ import ome.io.nio.PixelsService;
 import ome.model.core.Pixels;
 
 import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.lang.reflect.AnnotatedElement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.hibernate.Query;
 import org.hibernate.SessionFactory;
@@ -45,49 +42,12 @@ import org.hibernate.classic.Session;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ConditionEvaluationResult;
-import org.junit.jupiter.api.extension.ExecutionCondition;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.extension.ExtensionContext;
 
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import org.springframework.core.annotation.AnnotationUtils;
-
-/**
- * Marks tests that require a minimum pixel buffer cache size, see {@link PixelBufferCache#CAPACITY}.
- * @author m.t.b.carroll@dundee.ac.uk
- */
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
-@ExtendWith(DisabledForSmallCacheCondition.class)
-@interface DisabledForSmallCache {
-    /**
-     * @return the minimum size of {@link PixelBufferCache#CAPACITY} required for the test
-     */
-    int minimumSize();
-}
-
-/**
- * Implements {@link DisabledForSmallCache}.
- * @author m.t.b.carroll@dundee.ac.uk
- */
-class DisabledForSmallCacheCondition implements ExecutionCondition {
-    @Override
-    public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
-        final AnnotatedElement element = context.getElement().get();
-        final DisabledForSmallCache annotation = AnnotationUtils.findAnnotation(element, DisabledForSmallCache.class);
-        if (PixelBufferCache.CAPACITY >= annotation.minimumSize()) {
-            return ConditionEvaluationResult.enabled("cache is large enough");
-        } else {
-            return ConditionEvaluationResult.disabled("cache is not large enough");
-        }
-    }
-};
 
 /**
  * Check that the {@link PixelBufferCache} behaves as intended and that it calls
@@ -98,6 +58,9 @@ public class PixelBufferCacheTest {
 
     /* How many resolution levels mock images should have. */
     private static final int RESOLUTION_LEVELS = 3;
+
+    /* How many pixel buffers to cache. */
+    private static final int CACHE_SIZE = 20;
 
     @Mock
     private Query query;
@@ -131,7 +94,17 @@ public class PixelBufferCacheTest {
                 Mockito.when(buffer.getResolutionLevels()).thenReturn(RESOLUTION_LEVELS);
                 return buffer;
             }});
-        handler = new RequestHandlerForImage(sessionFactoryMock, pixelsServiceMock, null);
+        final Map<String, String> configuration =
+                ImmutableMap.of(Configuration.CONF_BUFFER_CACHE_SIZE, Integer.toString(CACHE_SIZE));
+        handler = new RequestHandlerForImage(new Configuration(configuration), sessionFactoryMock, pixelsServiceMock);
+    }
+
+    /**
+     * Check that the pixel buffer accepts the configured size.
+     */
+    @Test
+    public void testCacheSizeConfiguration() {
+        Assertions.assertEquals(CACHE_SIZE, handler.cache.getCapacity());
     }
 
     /**
@@ -156,8 +129,8 @@ public class PixelBufferCacheTest {
      * For various images and resolutions check that their same corresponding buffer is returned on later cache queries.
      */
     @Test
-    @DisabledForSmallCache(minimumSize = 4)
     public void testReuse() {
+        Assertions.assertTrue(handler.cache.getCapacity() >= 4);
         Assertions.assertTrue(RESOLUTION_LEVELS >= 2);
         final Map<String, PixelBuffer> buffers = new HashMap<>();
         final int repeats = 3;
@@ -187,22 +160,23 @@ public class PixelBufferCacheTest {
      * @throws IOException unexpected
      */
     @Test
-    @DisabledForSmallCache(minimumSize = 8)  // expiryCount * 2
     public void testExhaustion() throws IOException {
+        final int bufferCapacity = handler.cache.getCapacity();
         final int expiryCount = 4;
-        final int imageCount = PixelBufferCache.CAPACITY + expiryCount;
+        Assertions.assertTrue(bufferCapacity >= expiryCount * 2);
+        final int imageCount = bufferCapacity + expiryCount;
         final int totalFetches = imageCount + expiryCount;
         /* Fetch an image for every available buffer cache slot. */
         final List<PixelBuffer> originalBuffers = new ArrayList<>();
-        for (int image = 0; image < PixelBufferCache.CAPACITY; image++) {
+        for (int image = 0; image < bufferCapacity; image++) {
             final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
             Assertions.assertFalse(originalBuffers.contains(actualBuffer));
             originalBuffers.add(actualBuffer);
             handler.cache.releasePixelBuffer(actualBuffer);
         }
         /* Re-fetch half of the images, those should not be among those whose buffers expire subsequently. */
-        Assertions.assertEquals(PixelBufferCache.CAPACITY, new HashSet<>(originalBuffers).size());
-        for (int image = 0; image < PixelBufferCache.CAPACITY; image += 2) {
+        Assertions.assertEquals(bufferCapacity, new HashSet<>(originalBuffers).size());
+        for (int image = 0; image < bufferCapacity; image += 2) {
             final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
             final PixelBuffer expectedBuffer = originalBuffers.get(image);
             Assertions.assertEquals(expectedBuffer, actualBuffer);
@@ -214,7 +188,7 @@ public class PixelBufferCacheTest {
             imagesExpired.add(image);
         }
         /* Fetch some more images, that should expire some buffers from the other initial half. */
-        for (int image = PixelBufferCache.CAPACITY; image < imageCount; image++) {
+        for (int image = bufferCapacity; image < imageCount; image++) {
             final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
             Assertions.assertFalse(originalBuffers.contains(actualBuffer));
             originalBuffers.add(image, actualBuffer);

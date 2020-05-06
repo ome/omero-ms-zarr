@@ -65,9 +65,6 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      */
     class PixelBufferCache {
 
-        /* How many pixel buffers to keep open. Different resolutions count as different buffers. */
-        static final int CAPACITY = 16;
-
         /* An open pixel buffer set to a specific image and resolution. */
         private class Entry {
 
@@ -82,8 +79,26 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             }
         }
 
+        /* How many pixel buffers to keep open. Different resolutions count as different buffers. */
+        private final int capacity;
+
         private Deque<Entry> cache = new LinkedList<>();
         private Map<PixelBuffer, Integer> references = new HashMap<>();
+
+        /**
+         * Construct a new pixel buffer cache.
+         * @param capacity the capacity of this cache
+         */
+        PixelBufferCache(int capacity) {
+            this.capacity = capacity;
+        }
+
+        /**
+         * @return the capacity of this buffer as set by {@link #PixelBufferCache(int)}
+         */
+        int getCapacity() {
+            return capacity;
+        }
 
         /**
          * Get a pixel buffer from the cache, opening it if necessary.
@@ -106,7 +121,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                 }
             }
             /* a cache miss */
-            if (cache.size() == CAPACITY) {
+            if (cache.size() == capacity) {
                 /* make room for the new cache entry */
                 final Entry entry = cache.removeLast();
                 releasePixelBuffer(entry.buffer);
@@ -212,35 +227,39 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         }
     }
 
-    private static final int CHUNK_SIZE_MINIMUM = 0x100000;
-    private static final int DEFLATER_LEVEL = 6;
-
-    private static final String REGEX_GROUP = "/(\\d+)/\\.zgroup";
-    private static final String REGEX_ATTRS = "/(\\d+)/\\.zattrs";
-    private static final String REGEX_ARRAY = "/(\\d+)/(\\d+)/\\.zarray";
-    private static final String REGEX_CHUNK = "/(\\d+)/(\\d+)/(\\d+([/.]\\d+)*)";
-
-    private static final Pattern PATTERN_GROUP = Pattern.compile(REGEX_GROUP);
-    private static final Pattern PATTERN_ATTRS = Pattern.compile(REGEX_ATTRS);
-    private static final Pattern PATTERN_ARRAY = Pattern.compile(REGEX_ARRAY);
-    private static final Pattern PATTERN_CHUNK = Pattern.compile(REGEX_CHUNK);
-
-    final PixelBufferCache cache = new PixelBufferCache();
-
-    private final PixelsService pixelsService;
     private final SessionFactory sessionFactory;
-    private final String prefix;
+    private final PixelsService pixelsService;
+
+    final PixelBufferCache cache;
+
+    private final int chunkSize;
+    private final int deflateLevel;
+
+    private final Pattern patternForGroup;
+    private final Pattern patternForAttrs;
+    private final Pattern patternForArray;
+    private final Pattern patternForChunk;
 
     /**
      * Create the HTTP request handler.
-     * @param sessionFactory the Hibernate session factory
+     * @param configuration the configuration of this microservice
+     * @param sessionFactory he Hibernate session factory
      * @param pixelsService the OMERO pixels service
-     * @param uriPathPrefix the path prefix for the URIs to handle
      */
-    public RequestHandlerForImage(SessionFactory sessionFactory, PixelsService pixelsService, String uriPathPrefix) {
+    public RequestHandlerForImage(Configuration configuration, SessionFactory sessionFactory, PixelsService pixelsService) {
         this.sessionFactory = sessionFactory;
         this.pixelsService = pixelsService;
-        this.prefix = uriPathPrefix;
+
+        this.cache = new PixelBufferCache(configuration.getBufferCacheSize());
+
+        this.chunkSize = configuration.getMinimumChunkSize();
+        this.deflateLevel = configuration.getDeflateLevel();
+
+        final String path = configuration.getPathRegex();
+        this.patternForGroup = Pattern.compile(path + "\\.zgroup");
+        this.patternForAttrs = Pattern.compile(path + "\\.zattrs");
+        this.patternForArray = Pattern.compile(path + "(\\d+)/\\.zarray");
+        this.patternForChunk = Pattern.compile(path + "(\\d+)/(\\d+([/.]\\d+)*)");
     }
 
     /**
@@ -248,10 +267,10 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param router the router for which this can handle requests
      */
     public void handleFor(Router router) {
-        router.getWithRegex(prefix + REGEX_GROUP).handler(this);
-        router.getWithRegex(prefix + REGEX_ATTRS).handler(this);
-        router.getWithRegex(prefix + REGEX_ARRAY).handler(this);
-        router.getWithRegex(prefix + REGEX_CHUNK).handler(this);
+        router.getWithRegex(patternForGroup.pattern()).handler(this);
+        router.getWithRegex(patternForAttrs.pattern()).handler(this);
+        router.getWithRegex(patternForArray.pattern()).handler(this);
+        router.getWithRegex(patternForChunk.pattern()).handler(this);
     }
 
     /**
@@ -275,26 +294,26 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         final HttpServerRequest request = context.request();
         final HttpServerResponse response = request.response();
         if (request.method() == HttpMethod.GET) {
-            final String requestPath = request.path().substring(prefix.length());
+            final String requestPath = request.path();
             try {
                 Matcher matcher;
-                matcher = PATTERN_GROUP.matcher(requestPath);
+                matcher = patternForGroup.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
                     returnGroup(response, imageId);
                 }
-                matcher = PATTERN_ATTRS.matcher(requestPath);
+                matcher = patternForAttrs.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
                     returnAttrs(response, imageId);
                 }
-                matcher = PATTERN_ARRAY.matcher(requestPath);
+                matcher = patternForArray.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
                     final int resolutionId = Integer.parseInt(matcher.group(2));
                     returnArray(response, imageId, resolutionId);
                 }
-                matcher = PATTERN_CHUNK.matcher(requestPath);
+                matcher = patternForChunk.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
                     final int resolution = Integer.parseInt(matcher.group(2));
@@ -454,7 +473,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                 fail(response, 404, "no image for that id and resolution");
                 return;
             }
-            shape = new DataShape(buffer).adjustTileSize(CHUNK_SIZE_MINIMUM);
+            shape = new DataShape(buffer).adjustTileSize(chunkSize);
             final int xd = Math.min(shape.xSize, shape.xTile);
             final int yd = Math.min(shape.ySize, shape.yTile);
             final PixelData tile = buffer.getTile(0, 0, 0, 0, 0, xd, yd);
@@ -473,7 +492,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         /* package data for client */
         final Map<String, Object> compressor = new HashMap<>();
         compressor.put("id", "zlib");
-        compressor.put("level", DEFLATER_LEVEL);
+        compressor.put("level", deflateLevel);
         final Map<String, Object> result = new HashMap<>();
         result.put("zarr_format", 2);
         result.put("order", "C");
@@ -509,7 +528,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                 fail(response, 404, "no image for that id");
                 return;
             }
-            final DataShape shape = new DataShape(buffer).adjustTileSize(CHUNK_SIZE_MINIMUM);
+            final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSize);
             final int x = shape.xTile * chunkId.get(4);
             final int y = shape.yTile * chunkId.get(3);
             final int z = chunkId.get(2);
@@ -574,8 +593,8 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param uncompressed a byte array
      * @return the compressed bytes
      */
-    private static Buffer compress(byte[] uncompressed) {
-        final Deflater deflater = new Deflater(DEFLATER_LEVEL);
+    private Buffer compress(byte[] uncompressed) {
+        final Deflater deflater = new Deflater(deflateLevel);
         deflater.setInput(uncompressed);
         deflater.finish();
         final Buffer compressed = Buffer.factory.buffer(uncompressed.length);

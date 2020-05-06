@@ -1,0 +1,171 @@
+/*
+ * Copyright (C) 2020 University of Dundee & Open Microscopy Environment.
+ * All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+package org.openmicroscopy.ms.zarr;
+
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Stores the configuration of this microservice.
+ * @author m.t.b.carroll@dundee.ac.uk
+ */
+public class Configuration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
+
+    public final static String PLACEHOLDER_IMAGE_ID = "{image}";
+
+    /* Configuration keys for the map provided to the constructor. */
+    public final static String CONF_BUFFER_CACHE_SIZE = "buffer-cache.size";
+    public final static String CONF_CHUNK_SIZE_MIN = "chunk.size.min";
+    public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
+    public final static String CONF_NET_PATH_IMAGE = "net.path.image";
+    public final static String CONF_NET_PORT = "net.port";
+
+    /* Configuration initialized to default values. */
+    private int cacheSize = 16;
+    private int chunkSize = 0x100000;
+    private int zlibLevel = 6;
+    private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
+    private int netPort = 8080;
+
+    /**
+     * Convert the given URI path to a regular expression in which {@link #PLACEHOLDER_IMAGE_ID} matches the image ID.
+     * @param netPath a URI path, must contain {@link #PLACEHOLDER_IMAGE_ID}
+     * @return a corresponding regular expression
+     */
+    private static final String getRegexForNetPath(String netPath) {
+        final int imageIndex = netPath.indexOf(PLACEHOLDER_IMAGE_ID);
+        final StringBuilder netPathBuilder = new StringBuilder();
+        netPathBuilder.append("\\Q");
+        netPathBuilder.append(netPath.substring(0, imageIndex));
+        netPathBuilder.append("\\E");
+        netPathBuilder.append("(\\d+)");
+        netPathBuilder.append("\\Q");
+        netPathBuilder.append(netPath.substring(imageIndex + PLACEHOLDER_IMAGE_ID.length()));
+        netPathBuilder.append("\\E");
+        return netPathBuilder.toString();
+    }
+
+    /**
+     * Construct a new read-only configuration.
+     * @param configuration a map of configuration keys and values, may be empty but must not be {@code null}
+     */
+    public Configuration(Map<String, String> configuration) {
+        final String cacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
+        final String chunkSize = configuration.get(CONF_CHUNK_SIZE_MIN);
+        final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
+        final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
+        final String netPort = configuration.get(CONF_NET_PORT);
+
+        if (cacheSize != null) {
+            try {
+                this.cacheSize = Integer.parseInt(cacheSize);
+            } catch (NumberFormatException nfe) {
+                final String message = "buffer cache size must be an integer, not " + cacheSize;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (chunkSize != null) {
+            try {
+                this.chunkSize = Integer.parseInt(chunkSize);
+            } catch (NumberFormatException nfe) {
+                final String message = "minimum chunk size must be an integer, not " + chunkSize;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (zlibLevel != null) {
+            try {
+                this.zlibLevel = Integer.parseInt(zlibLevel);
+            } catch (NumberFormatException nfe) {
+                final String message = "deflate compression level must be an integer, not " + zlibLevel;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (netPath != null) {
+            if (netPath.indexOf('\\') == -1) {
+                if (netPath.contains(PLACEHOLDER_IMAGE_ID)) {
+                    this.netPath = getRegexForNetPath(netPath);
+                } else {
+                    final String message = "URI path must contain " + PLACEHOLDER_IMAGE_ID + " placeholder for image ID";
+                    LOGGER.error(message);
+                    throw new IllegalArgumentException(message);
+                }
+            } else {
+                final String message = "URI path cannot contain backslashes";
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (netPort != null) {
+            try {
+                this.netPort = Integer.parseInt(netPort);
+            } catch (NumberFormatException nfe) {
+                final String message = "TCP port number must be an integer, not " + netPort;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+    }
+
+    /**
+     * @return the configured pixel buffer cache size
+     */
+    public int getBufferCacheSize() {
+        return cacheSize;
+    }
+
+    /**
+     * @return the configured minimum chunk size
+     */
+    public int getMinimumChunkSize() {
+        return chunkSize;
+    }
+
+    /**
+     * @return the configured decompression level for zlib
+     */
+    public int getDeflateLevel() {
+        return zlibLevel;
+    }
+
+    /**
+     * @return the configured URI path as a regular expression
+     */
+    public String getPathRegex() {
+        return netPath;
+    }
+
+    /**
+     * @return the configured TCP port for HTTP
+     */
+    public int getServerPort() {
+        return netPort;
+    }
+}

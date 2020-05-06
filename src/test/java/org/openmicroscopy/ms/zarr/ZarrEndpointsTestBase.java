@@ -26,7 +26,10 @@ import ome.io.nio.PixelsService;
 import ome.model.core.Pixels;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Stream;
+
+import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -101,7 +104,9 @@ public abstract class ZarrEndpointsTestBase {
         Mockito.when(httpRequest.method()).thenReturn(HttpMethod.GET);
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
         Mockito.when(context.request()).thenReturn(httpRequest);
-        handler = new RequestHandlerForImage(sessionFactoryMock, pixelsServiceMock, URI_PATH_PREFIX);
+        final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
+        final Map<String, String> configuration = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
+        handler = new RequestHandlerForImage(new Configuration(configuration), sessionFactoryMock, pixelsServiceMock);
     }
 
     /**
