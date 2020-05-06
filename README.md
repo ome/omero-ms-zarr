@@ -11,7 +11,8 @@ for querying role IDs from an OMERO database.
 
 ## Run
 
-Put your OMERO server configuration into `etc/omero.properties`, run
+Copy your OMERO.server configuration `etc/omero.properties` to the
+microservice then,
 
     gradle run --args=etc/omero.properties
 
@@ -22,8 +23,8 @@ and try
 
 ### Configuration
 
-In addition to your usual OMERO.server configuration
-`etc/omero.properties` may include:
+In addition to your usual OMERO.server configuration, the microservice's
+`etc/omero.properties` may also include:
 
 `omero.ms.zarr.buffer-cache.size`
 : pixel buffer cache size, default 16
