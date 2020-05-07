@@ -59,7 +59,6 @@ can be found under the "omero" key in the group-level metadata:
         "active": true,
         "coefficient": 1,
         "color": "0000FF",
-        "emissionWave": null,
         "family": "linear",
         "inverted": false,
         "label": "LaminB1",
