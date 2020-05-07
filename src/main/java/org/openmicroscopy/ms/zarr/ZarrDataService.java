@@ -51,6 +51,16 @@ public class ZarrDataService {
      * @throws IOException if the configuration could not be loaded
      */
     public static void main(String[] argv) throws IOException {
+        mainVerticle(argv, null);
+    }
+
+    /**
+     * Run the microservice configured using properties files with optional overrides
+     * @param argv filename(s) from which to read configuration beyond current Java system properties
+     * @param overrides Override properties obtained from files with these properties
+     * @throws IOException
+     */
+    static void mainVerticle(String[] argv, Properties overrides) throws IOException {
         /* set system properties from named configuration files */
         final Properties propertiesSystem = System.getProperties();
         for (final String filename : argv) {
@@ -59,6 +69,9 @@ public class ZarrDataService {
                 propertiesNew.load(filestream);
             }
             propertiesSystem.putAll(propertiesNew);
+        }
+        if (overrides != null) {
+            propertiesSystem.putAll(overrides);
         }
         /* determine microservice configuration from system properties */
         final ImmutableMap.Builder<String, String> configuration = ImmutableMap.builder();
