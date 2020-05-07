@@ -63,7 +63,6 @@ can be found under the "omero" key in the group-level metadata:
         "family": "linear",
         "inverted": false,
         "label": "LaminB1",
-        "reverseIntensity": false,
         "window": {
             "end": 1500,
             "max": 65535,
