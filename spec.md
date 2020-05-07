@@ -43,9 +43,6 @@ if not datasets:
 The subresolutions in each multiscale are ordered from highest-resolution
 to lowest.
 
-see also:
- - [Multiscale metadata spec](https://github.com/zarr-developers/zarr-specs/issues/50)
-
 ##  "omero" metadata
 
 Information specific to the channels of an image and how to render it
