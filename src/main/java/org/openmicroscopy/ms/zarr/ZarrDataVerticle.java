@@ -19,7 +19,9 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import org.hibernate.SessionFactory;
+import ome.io.nio.PixelsService;
+
+import java.util.Map;
 
 import io.vertx.core.Context;
 import io.vertx.core.Future;
@@ -29,7 +31,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
-import ome.io.nio.PixelsService;
+
+import org.hibernate.SessionFactory;
 
 /**
  * Set up HTTP endpoint.
@@ -37,6 +40,7 @@ import ome.io.nio.PixelsService;
  */
 public class ZarrDataVerticle implements Verticle {
 
+    private final Configuration configuration;
     private final SessionFactory sessionFactory;
     private final PixelsService pixelsService;
 
@@ -47,9 +51,11 @@ public class ZarrDataVerticle implements Verticle {
 
     private HttpServer server;
 
-    public ZarrDataVerticle(SessionFactory sessionFactory, PixelsService pixelsService) {
+    public ZarrDataVerticle(Map<String, String> configuration, SessionFactory sessionFactory, PixelsService pixelsService) {
+        this.configuration = new Configuration(configuration);
         this.sessionFactory = sessionFactory;
         this.pixelsService = pixelsService;
+
     }
 
     @Override
@@ -64,17 +70,17 @@ public class ZarrDataVerticle implements Verticle {
     }
 
     /**
-     * Starts the verticle and listens on HTTP port 8080.
+     * Starts the verticle and listens for HTTP requests.
      * @param promise for reporting the outcome
      */
     @Override
     public void start(Promise<Void> promise) {
         /* listen for queries over HTTP */
         final Router router = Router.router(vertx);
-        server = vertx.createHttpServer(new HttpServerOptions().setPort(8080));
+        server = vertx.createHttpServer(new HttpServerOptions().setPort(configuration.getServerPort()));
         server.requestHandler(router);
-        new RequestHandlerForImage(sessionFactory, pixelsService, "/image").handleFor(router);
-        server.listen();  // does not yet handle failure
+        new RequestHandlerForImage(configuration, sessionFactory, pixelsService).handleFor(router);
+        server.listen();  // TODO: does not yet handle failure
         promise.complete();
     }
 

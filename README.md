@@ -11,13 +11,35 @@ for querying role IDs from an OMERO database.
 
 ## Run
 
-Put your OMERO server configuration into `etc/omero.properties`, run
+Copy your OMERO.server configuration `etc/omero.properties` to the
+microservice then,
 
-    gradle run --args='etc/omero.properties'
+    gradle run --args=etc/omero.properties
 
 and try
 
-    src/scripts/fetch-ms-zarr.py -h
+    src/scripts/fetch-ms-zarr.py --endpoint-url http://localhost:8080/ --url-format '{url}image/{image}.zarr/' 1234
+
+
+### Configuration
+
+In addition to your usual OMERO.server configuration, the microservice's
+`etc/omero.properties` may also include:
+
+`omero.ms.zarr.buffer-cache.size`
+: pixel buffer cache size, default 16
+
+`omero.ms.zarr.chunk.size.min`
+: minimum chunk size (not guaranteed), default 1048576; applies before compression
+
+`omero.ms.zarr.compress.zlib.level`
+: zlib compression level for chunks, default 6
+
+`omero.ms.zarr.net.path.image`
+: URI template path for getting image data, default `/image/{image}.zarr/` where `{image}` signifies the image ID and is mandatory
+
+`omero.ms.zarr.net.port`
+: the TCP port on which the HTTP server should listen, default 8080
 
 
 ## Build jar with dependencies
