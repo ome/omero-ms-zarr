@@ -71,7 +71,7 @@ can be found under the "omero" key in the group-level metadata:
     "defaultT": 0,                    # First timepoint to show the user
     "defaultZ": 118,                  # First Z section to show the user
     "model": "color"                  # "color" or "greyscale"
-},
+}
 ```
 
 
