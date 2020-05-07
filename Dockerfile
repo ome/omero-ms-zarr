@@ -16,6 +16,5 @@ FROM adoptopenjdk/openjdk11:jre-11.0.7_10-alpine
 RUN apk add --no-cache bash
 COPY --from=build /omero-ms-zarr-shadow/ .
 
-# Presumably the micro-service listens on a port, but there's no documentation on what it is or how to change it
-# PORT
-CMD ["omero-ms-zarr", "/etc/omero.properties"]
+EXPOSE 8080
+ENTRYPOINT ["java", "-cp", "/lib/omero-ms-zarr-0.1.1-SNAPSHOT-all.jar", "org.openmicroscopy.ms.zarr.ConfigEnv"]
