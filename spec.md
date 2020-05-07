@@ -32,12 +32,12 @@ name, using the first multiscale as a fallback:
 ```
 datasets = []
 for named in multiscales:
-    if named['name'] == '3D':
-        datasets = [x['path'] for x in named["datasets"]]
+    if named["name"] == "3D":
+        datasets = [x["path"] for x in named["datasets"]]
         break
 if not datasets:
     # Use the first by default. Or perhaps choose based on chunk size.
-    datasets = [x['path'] for x in multiscales[0]["datasets"]]
+    datasets = [x["path"] for x in multiscales[0]["datasets"]]
 ```
 
 The subresolutions in each multiscale are ordered from highest-resolution
