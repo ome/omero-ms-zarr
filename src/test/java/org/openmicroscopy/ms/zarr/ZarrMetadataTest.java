@@ -22,7 +22,9 @@ package org.openmicroscopy.ms.zarr;
 import java.awt.Dimension;
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -31,7 +33,9 @@ import com.google.common.collect.Sets;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -41,6 +45,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrMetadataTest extends ZarrEndpointsTestBase {
+
+    private final List<Dimension> resolutionSizes = new ArrayList<>();
 
     /**
      * Check that there are no unexpected keys among the JSON.
@@ -98,6 +104,14 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
     }
 
     /**
+     * Prepare to note the <em>X</em>-<em>Y</em> size of each resolution.
+     */
+    @BeforeAll
+    public void clearResolutionSizes() {
+        resolutionSizes.clear();
+    }
+
+    /**
      * Check that the {@code .zarray}s from the microservice are as expected.
      * @param resolution the pixel buffer resolution corresponding to the currently tested group
      * @param path the URI path component that selects the currently tested group
@@ -125,6 +139,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
         final int chunkZ = chunks.getInteger(2);
         final int chunkC = chunks.getInteger(1);
         final int chunkT = chunks.getInteger(0);
+        resolutionSizes.add(new Dimension(shapeX, shapeY));
         if (scale != null) {
             pixelBuffer.setResolutionLevel(pixelBuffer.getResolutionLevels() - 1);
             final long expectShapeX = Math.round(pixelBuffer.getSizeX() * scale);
@@ -166,6 +181,21 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
                 final JsonObject filter = (JsonObject) element;
                 Assertions.assertNotNull(filter.getString("id"));
             }
+        }
+    }
+
+    /**
+     * Check that the <em>X</em>-<em>Y</em> size of the resolutions decreases monotonically.
+     */
+    @AfterAll
+    public void checkResolutionSizesDescend() {
+        Assertions.assertEquals(pixelBuffer.getResolutionLevels(), resolutionSizes.size());
+        Dimension previous = new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);
+        for (final Dimension current : resolutionSizes) {
+            Assertions.assertFalse(current.width > previous.width);
+            Assertions.assertFalse(current.height > previous.height);
+            Assertions.assertTrue(current.width < previous.width || current.height < previous.height);
+            previous = current;
         }
     }
 }
