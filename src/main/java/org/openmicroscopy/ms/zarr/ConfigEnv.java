@@ -20,7 +20,6 @@
 package org.openmicroscopy.ms.zarr;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
@@ -36,8 +35,7 @@ public class ConfigEnv {
      */
     public static void main(String[] argv) throws IOException {
         Properties overrides = new Properties();
-        for (Iterator<Map.Entry<String, String>> i = System.getenv().entrySet().iterator(); i.hasNext();) {
-            Map.Entry<String, String> e = i.next();
+        for (final Map.Entry<String, String> e : System.getenv().entrySet()) {
             if (e.getKey().startsWith("CONFIG_")) {
                 String key = e.getKey().substring(7);
                 key = key.replaceAll("([^_])_([^_])", "$1.$2").replaceAll("__", "_");
