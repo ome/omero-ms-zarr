@@ -442,7 +442,8 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             final Map<String, Object> dataset = new HashMap<>();
             dataset.put("path", Integer.toString(resolution++));
             if (scale != null) {
-                dataset.put("scale", scale);
+                /* dataset.put("scale", scale);
+                 * scale is omitted while it is being rethought */
             }
             datasets.add(dataset);
         }

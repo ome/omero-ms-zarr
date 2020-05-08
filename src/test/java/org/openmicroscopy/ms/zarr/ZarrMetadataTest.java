@@ -83,10 +83,12 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
             assertNoExtraKeys(dataset, "path", "scale");
             final String path = dataset.getString("path");
             Assertions.assertNotNull(path);
+            @SuppressWarnings("unused")
             final Double scale = dataset.getDouble("scale");
             if (isScale1) {
                 /* The first group listed is for the full-size image. */
-                Assertions.assertEquals(1, scale);
+                /* Assertions.assertEquals(1, scale);
+                 * scale is omitted while it is being rethought */
                 isScale1 = false;
             }
             paths.add(path);
