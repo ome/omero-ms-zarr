@@ -57,7 +57,7 @@ public class ZarrDataService {
     /**
      * Run the microservice configured using properties files with optional overrides
      * @param argv filename(s) from which to read configuration beyond current Java system properties
-     * @param overrides Override properties obtained from files with these properties
+     * @param overrides override properties obtained from files with these properties
      * @throws IOException if the configuration could not be loaded
      */
     static void mainVerticle(String[] argv, Properties overrides) throws IOException {
