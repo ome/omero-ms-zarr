@@ -23,9 +23,13 @@ import org.openmicroscopy.ms.zarr.stub.PixelBufferFake;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
+import ome.model.core.Image;
 import ome.model.core.Pixels;
+import ome.model.internal.Details;
+import ome.model.meta.Experimenter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -91,13 +95,32 @@ public abstract class ZarrEndpointsTestBase {
     private RequestHandlerForImage handler;
 
     /**
+     * Set up a mock pixels object from which to source OMERO metadata.
+     * @return a mock pixels object
+     */
+    private static Pixels constructMockPixels() {
+        final Pixels pixels = Mockito.mock(Pixels.class);
+        final Image image = Mockito.mock(Image.class);
+        final Details details = Mockito.mock(Details.class);
+        final Experimenter owner = new Experimenter(1L, false);
+        Mockito.when(pixels.getImage()).thenReturn(image);
+        Mockito.when(pixels.getDetails()).thenReturn(details);
+        Mockito.when(pixels.iterateSettings()).thenReturn(Collections.emptyIterator());
+        Mockito.when(image.getId()).thenReturn(1L);
+        Mockito.when(image.getName()).thenReturn("test image");
+        Mockito.when(details.getOwner()).thenReturn(owner);
+        return pixels;
+    }
+
+    /**
      * Set up the HTTP request handler atop mock services. Can be used to reset the mocks in between requests.
      * @throws IOException unexpected
      */
     @BeforeEach
     protected void mockSetup() throws IOException {
         MockitoAnnotations.initMocks(this);
-        Mockito.when(query.uniqueResult()).thenReturn(new Pixels());
+        final Pixels pixels = constructMockPixels();
+        Mockito.when(query.uniqueResult()).thenReturn(pixels);
         Mockito.when(sessionMock.createQuery(Mockito.anyString())).thenReturn(query);
         Mockito.when(sessionFactoryMock.openSession()).thenReturn(sessionMock);
         Mockito.when(pixelsServiceMock.getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false))).thenReturn(pixelBuffer);

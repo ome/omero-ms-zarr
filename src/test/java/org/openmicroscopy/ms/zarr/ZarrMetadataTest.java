@@ -75,7 +75,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
     @Test
     public void testZarrAttrs() {
         final JsonObject response = getResponseAsJson(0, ".zattrs");
-        assertNoExtraKeys(response, "multiscales");
+        assertNoExtraKeys(response, "multiscales", "omero");
         final JsonArray multiscales = response.getJsonArray("multiscales");
         Assertions.assertEquals(1, multiscales.size());
         final JsonObject multiscale = multiscales.getJsonObject(0);
