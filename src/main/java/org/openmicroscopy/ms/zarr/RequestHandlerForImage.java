@@ -25,6 +25,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,14 @@ import io.vertx.ext.web.RoutingContext;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
+import ome.model.core.Channel;
+import ome.model.core.Image;
 import ome.model.core.Pixels;
+import ome.model.display.ChannelBinding;
+import ome.model.display.CodomainMapContext;
+import ome.model.display.RenderingDef;
+import ome.model.display.ReverseIntensityContext;
+import ome.model.stats.StatsInfo;
 import ome.util.PixelData;
 
 /**
@@ -335,6 +343,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
 
     /**
      * Get a pixels instance that can be used with {@link PixelsService#getPixelBuffer(Pixels, boolean)}.
+     * Includes extra {@code JOIN}s for {@link #buildOmeroMetadata(long)}.
      * @param imageId the ID of an image
      * @return that image's pixels instance, or {@code null} if one could not be found
      */
@@ -347,9 +356,15 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
                     "SELECT p FROM Pixels AS p " +
                     "JOIN FETCH p.pixelsType " +
                     "LEFT OUTER JOIN FETCH p.channels AS c " +
-                    "LEFT OUTER JOIN FETCH c.logicalChannel AS lc " +
+                    "LEFT OUTER JOIN FETCH p.image AS i " +
+                    "LEFT OUTER JOIN FETCH p.settings AS r " +
+                    "LEFT OUTER JOIN FETCH c.logicalChannel " +
                     "LEFT OUTER JOIN FETCH c.statsInfo " +
-                    "WHERE p.image.id = ?");
+                    "LEFT OUTER JOIN FETCH r.model " +
+                    "LEFT OUTER JOIN FETCH r.waveRendering AS cb " +
+                    "LEFT OUTER JOIN FETCH cb.family " +
+                    "LEFT OUTER JOIN FETCH cb.spatialDomainEnhancement " +
+                    "WHERE i.id = ?");
             query.setParameter(0, imageId);
             return (Pixels) query.uniqueResult();
         } finally {
@@ -385,6 +400,91 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         final Map<String, Object> result = new HashMap<>();
         result.put("zarr_format", 2);
         respondWithJson(response, new JsonObject(result));
+    }
+
+    /**
+     * Build OMERO metadata for {@link #returnAttrs(HttpServerResponse, long)} to include with a {@code "omero"} key.
+     * @param imageId the ID of the image being queried
+     * @return the nested metadata, or {@code null} if none could be found
+     */
+    private Map<String, Object> buildOmeroMetadata(long imageId) {
+        final Pixels pixels = getPixels(imageId);
+        if (pixels == null) {
+            return null;
+        }
+        final Map<String, Object> omero = new HashMap<>();
+        final Image image = pixels.getImage();
+        omero.put("id", image.getId());
+        omero.put("name", image.getName());
+        final long ownerId = pixels.getDetails().getOwner().getId();
+        RenderingDef rdef = null;
+        final Iterator<RenderingDef> settingsIterator = pixels.iterateSettings();
+        while (rdef == null && settingsIterator.hasNext()) {
+            final RenderingDef setting = settingsIterator.next();
+            if (ownerId == setting.getDetails().getOwner().getId()) {
+                /* settings owned by the image owner ... */
+                rdef = setting;
+            }
+        }
+        if (rdef == null) {
+            if (pixels.sizeOfSettings() > 0) {
+                /* ... or fall back to other settings */
+                rdef = pixels.iterateSettings().next();
+            }
+        }
+        if (rdef != null) {
+            final Map<String, Object> rdefs = new HashMap<>();
+            rdefs.put("defaultZ", rdef.getDefaultZ());
+            rdefs.put("defaultT", rdef.getDefaultT());
+            if (rdef.getModel().getValue().equals("greyscale")) {
+                rdefs.put("model", "greyscale");
+            } else {
+                /* probably "rgb" */
+                rdefs.put("model", "color");
+            }
+            omero.put("rdefs", rdefs);
+            final int channelCount = pixels.sizeOfChannels();
+            if (channelCount == rdef.sizeOfWaveRendering()) {
+                final List<Map<String, Object>> channels = new ArrayList<>(channelCount);
+                for (int index = 0; index < channelCount; index++) {
+                    final Channel channel = pixels.getChannel(index);
+                    final ChannelBinding binding = rdef.getChannelBinding(index);
+                    final Map<String, Object> channelsElem = new HashMap<>();
+                    final String name = channel.getLogicalChannel().getName();
+                    if (name != null) {
+                        channelsElem.put("label", channel.getLogicalChannel().getName());
+                    }
+                    channelsElem.put("active", binding.getActive());
+                    channelsElem.put("coefficient", binding.getCoefficient());
+                    channelsElem.put("family", binding.getFamily().getValue());
+                    boolean isInverted = false;
+                    final Iterator<CodomainMapContext> sdeIterator = binding.iterateSpatialDomainEnhancement();
+                    while (sdeIterator.hasNext()) {
+                        final CodomainMapContext sde = sdeIterator.next();
+                        if (sde instanceof ReverseIntensityContext) {
+                            isInverted ^= ((ReverseIntensityContext) sde).getReverse();
+                        }
+                    }
+                    channelsElem.put("inverted", isInverted);
+                    channelsElem.put("color",
+                            String.format("%02X", binding.getRed()) +
+                            String.format("%02X", binding.getGreen()) +
+                            String.format("%02X", binding.getBlue()));
+                    final Map<String, Object> window = new HashMap<>();
+                    final StatsInfo stats = channel.getStatsInfo();
+                    if (stats != null) {
+                        window.put("min", stats.getGlobalMin());
+                        window.put("max", stats.getGlobalMax());
+                    }
+                    window.put("start", binding.getInputStart());
+                    window.put("end", binding.getInputEnd());
+                    channelsElem.put("window", window);
+                    channels.add(channelsElem);
+                }
+                omero.put("channels", channels);
+            }
+        }
+        return omero;
     }
 
     /**
@@ -452,8 +552,12 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         multiscale.put("datasets", datasets);
         final JsonArray multiscales = new JsonArray();
         multiscales.add(multiscale);
+        final Map<String, Object> omero = buildOmeroMetadata(imageId);
         final Map<String, Object> result = new HashMap<>();
         result.put("multiscales", multiscales);
+        if (omero != null) {
+            result.put("omero", omero);
+        }
         respondWithJson(response, new JsonObject(result));
     }
 
