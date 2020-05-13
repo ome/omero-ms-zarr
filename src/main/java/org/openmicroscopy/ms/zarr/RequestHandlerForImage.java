@@ -58,6 +58,7 @@ import ome.model.display.ChannelBinding;
 import ome.model.display.CodomainMapContext;
 import ome.model.display.RenderingDef;
 import ome.model.display.ReverseIntensityContext;
+import ome.model.enums.RenderingModel;
 import ome.model.stats.StatsInfo;
 import ome.util.PixelData;
 
@@ -436,7 +437,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             final Map<String, Object> rdefs = new HashMap<>();
             rdefs.put("defaultZ", rdef.getDefaultZ());
             rdefs.put("defaultT", rdef.getDefaultT());
-            if (rdef.getModel().getValue().equals("greyscale")) {
+            if (RenderingModel.VALUE_GREYSCALE.equals(rdef.getModel().getValue())) {
                 rdefs.put("model", "greyscale");
             } else {
                 /* probably "rgb" */
