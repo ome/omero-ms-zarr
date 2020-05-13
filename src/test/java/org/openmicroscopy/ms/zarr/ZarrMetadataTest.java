@@ -76,6 +76,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
     public void testZarrAttrs() {
         final JsonObject response = getResponseAsJson(0, ".zattrs");
         assertNoExtraKeys(response, "multiscales", "omero");
+        /* Zarr format */
         final JsonArray multiscales = response.getJsonArray("multiscales");
         Assertions.assertEquals(1, multiscales.size());
         final JsonObject multiscale = multiscales.getJsonObject(0);
@@ -101,6 +102,45 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
         }
         Assertions.assertEquals(pixelBuffer.getResolutionLevels(), paths.size());
         Assertions.assertEquals("0.1", multiscale.getString("version"));
+        /* OMERO extras */
+        final JsonObject omero = response.getJsonObject("omero");
+        assertNoExtraKeys(omero, "id", "name", "channels", "rdefs");
+        Assertions.assertNotNull(omero.getLong("id"));
+        Assertions.assertEquals(imageName, omero.getString("name"));
+        final JsonArray channels = omero.getJsonArray("channels");
+        Assertions.assertEquals(pixelBuffer.getSizeC(), channels.size());
+        final JsonObject channel1 = channels.getJsonObject(0);
+        final JsonObject channel2 = channels.getJsonObject(1);
+        final JsonObject channel3 = channels.getJsonObject(2);
+        Assertions.assertEquals(channelName1, channel1.getString("label"));
+        Assertions.assertEquals(channelName2, channel2.getString("label"));
+        Assertions.assertEquals(channelName3, channel3.getString("label"));
+        Assertions.assertEquals("FF0000", channel1.getString("color"));
+        Assertions.assertEquals("00FF00", channel2.getString("color"));
+        Assertions.assertEquals("0000FF", channel3.getString("color"));
+        for (final Object channelObject : channels) {
+            final JsonObject channel = (JsonObject) channelObject;
+            assertNoExtraKeys(channel, "active", "coefficient", "color", "family", "inverted", "label", "window");
+            Assertions.assertTrue(channel.getBoolean("active"));
+            Assertions.assertTrue(channel.getDouble("coefficient") > 0);
+            Assertions.assertEquals("linear", channel.getString("family"));
+            Assertions.assertFalse(channel.getBoolean("inverted"));
+            final JsonObject window = channel.getJsonObject("window");
+            assertNoExtraKeys(window, "start", "end", "min", "max");
+            final double start = window.getDouble("start");
+            final double end = window.getDouble("end");
+            final double min = window.getDouble("min");
+            final double max = window.getDouble("max");
+            Assertions.assertTrue(min < max);
+            Assertions.assertTrue(start < end);
+            Assertions.assertTrue(start < max);
+            Assertions.assertTrue(min < end);
+        }
+        final JsonObject rdefs = omero.getJsonObject("rdefs");
+        assertNoExtraKeys(rdefs, "defaultZ", "defaultT", "model");
+        Assertions.assertEquals("color", rdefs.getString("model"));
+        Assertions.assertEquals(defaultZ, rdefs.getInteger("defaultZ"));
+        Assertions.assertEquals(defaultT, rdefs.getInteger("defaultT"));
     }
 
     /**

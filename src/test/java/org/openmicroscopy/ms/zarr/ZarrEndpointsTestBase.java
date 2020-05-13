@@ -23,17 +23,26 @@ import org.openmicroscopy.ms.zarr.stub.PixelBufferFake;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
+import ome.model.core.Channel;
 import ome.model.core.Image;
+import ome.model.core.LogicalChannel;
 import ome.model.core.Pixels;
+import ome.model.display.ChannelBinding;
+import ome.model.display.RenderingDef;
+import ome.model.enums.Family;
+import ome.model.enums.RenderingModel;
 import ome.model.internal.Details;
 import ome.model.meta.Experimenter;
+import ome.model.stats.StatsInfo;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -94,21 +103,79 @@ public abstract class ZarrEndpointsTestBase {
 
     private RequestHandlerForImage handler;
 
+    /* A note of property values for later comparison. */
+    protected String imageName;
+    protected String channelName1, channelName2, channelName3;
+    protected int defaultZ, defaultT;
+
     /**
      * Set up a mock pixels object from which to source OMERO metadata.
      * @return a mock pixels object
      */
-    private static Pixels constructMockPixels() {
-        final Pixels pixels = Mockito.mock(Pixels.class);
-        final Image image = Mockito.mock(Image.class);
-        final Details details = Mockito.mock(Details.class);
+    private Pixels constructMockPixels() {
+        /* Create skeleton objects. */
+        final Channel channel1 = new Channel(1L, true);
+        final Channel channel2 = new Channel(2L, true);
+        final Channel channel3 = new Channel(3L, true);
+        final LogicalChannel logicalChannel1 = new LogicalChannel(1L, true);
+        final LogicalChannel logicalChannel2 = new LogicalChannel(2L, true);
+        final LogicalChannel logicalChannel3 = new LogicalChannel(3L, true);
+        logicalChannel1.setName("Белобог");
+        logicalChannel2.setName("Чернобог");
+        logicalChannel3.setName("Марена");
+        channel1.setLogicalChannel(logicalChannel1);
+        channel2.setLogicalChannel(logicalChannel2);
+        channel3.setLogicalChannel(logicalChannel3);
+        final ChannelBinding binding1 = new ChannelBinding(1L, true);
+        final ChannelBinding binding2 = new ChannelBinding(2L, true);
+        final ChannelBinding binding3 = new ChannelBinding(3L, true);
+        final Family family = new Family(Family.VALUE_LINEAR);
+        for (final ChannelBinding binding : Arrays.asList(binding1, binding2, binding3)) {
+            binding.setActive(true);
+            binding.setCoefficient(1.0);
+            binding.setFamily(family);
+            binding.setInputStart(100.0);
+            binding.setInputEnd(1000.0);
+        }
+        binding1.setRed(255); binding1.setGreen(0); binding1.setBlue(0);
+        binding2.setRed(0); binding2.setGreen(255); binding2.setBlue(0);
+        binding3.setRed(0); binding3.setGreen(0); binding3.setBlue(255);
+        final StatsInfo range = new StatsInfo(0.0, 65535.0);
+        channel1.setStatsInfo(range);
+        channel2.setStatsInfo(range);
+        channel3.setStatsInfo(range);
         final Experimenter owner = new Experimenter(1L, false);
+        final Image image = new Image(1L, true);
+        image.setName("test image for " + getClass().getSimpleName());
+        /* Construct mock objects. */
+        final Pixels pixels = Mockito.mock(Pixels.class);
+        final RenderingDef rdef = Mockito.mock(RenderingDef.class);
+        final Details details = Mockito.mock(Details.class);
         Mockito.when(pixels.getImage()).thenReturn(image);
         Mockito.when(pixels.getDetails()).thenReturn(details);
-        Mockito.when(pixels.iterateSettings()).thenReturn(Collections.emptyIterator());
-        Mockito.when(image.getId()).thenReturn(1L);
-        Mockito.when(image.getName()).thenReturn("test image");
+        Mockito.when(pixels.iterateSettings()).thenReturn(Collections.singleton(rdef).iterator());
+        Mockito.when(pixels.sizeOfChannels()).thenReturn(3);
+        Mockito.when(pixels.getChannel(Mockito.eq(0))).thenReturn(channel1);
+        Mockito.when(pixels.getChannel(Mockito.eq(1))).thenReturn(channel2);
+        Mockito.when(pixels.getChannel(Mockito.eq(2))).thenReturn(channel3);
+        Mockito.when(rdef.getDetails()).thenReturn(details);
+        Mockito.when(rdef.sizeOfWaveRendering()).thenReturn(3);
+        Mockito.when(rdef.getChannelBinding(Mockito.eq(0))).thenReturn(binding1);
+        Mockito.when(rdef.getChannelBinding(Mockito.eq(1))).thenReturn(binding2);
+        Mockito.when(rdef.getChannelBinding(Mockito.eq(2))).thenReturn(binding3);
+        Mockito.when(rdef.getDefaultZ()).thenReturn(pixelBuffer.getSizeZ() / 2);
+        Mockito.when(rdef.getDefaultT()).thenReturn(pixelBuffer.getSizeT() / 2);
+        Mockito.when(rdef.getModel()).thenReturn(new RenderingModel(RenderingModel.VALUE_RGB));
         Mockito.when(details.getOwner()).thenReturn(owner);
+        /* Note property values for later comparison. */
+        imageName = image.getName();
+        channelName1 = channel1.getLogicalChannel().getName();
+        channelName2 = channel2.getLogicalChannel().getName();
+        channelName3 = channel3.getLogicalChannel().getName();
+        defaultZ = rdef.getDefaultZ();
+        defaultT = rdef.getDefaultT();
+        Assertions.assertEquals(3, ImmutableSet.of(channelName1, channelName2, channelName3).size());
+        Assertions.assertNotEquals(defaultZ, defaultT);
         return pixels;
     }
 
