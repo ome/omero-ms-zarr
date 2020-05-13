@@ -22,7 +22,9 @@ package org.openmicroscopy.ms.zarr;
 import java.awt.Dimension;
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -31,7 +33,9 @@ import com.google.common.collect.Sets;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -41,6 +45,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrMetadataTest extends ZarrEndpointsTestBase {
+
+    private final List<Dimension> resolutionSizes = new ArrayList<>();
 
     /**
      * Check that there are no unexpected keys among the JSON.
@@ -69,7 +75,8 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
     @Test
     public void testZarrAttrs() {
         final JsonObject response = getResponseAsJson(0, ".zattrs");
-        assertNoExtraKeys(response, "multiscales");
+        assertNoExtraKeys(response, "multiscales", "omero");
+        /* Zarr format */
         final JsonArray multiscales = response.getJsonArray("multiscales");
         Assertions.assertEquals(1, multiscales.size());
         final JsonObject multiscale = multiscales.getJsonObject(0);
@@ -83,16 +90,65 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
             assertNoExtraKeys(dataset, "path", "scale");
             final String path = dataset.getString("path");
             Assertions.assertNotNull(path);
+            @SuppressWarnings("unused")
             final Double scale = dataset.getDouble("scale");
             if (isScale1) {
                 /* The first group listed is for the full-size image. */
-                Assertions.assertEquals(1, scale);
+                /* Assertions.assertEquals(1, scale);
+                 * scale is omitted while it is being rethought */
                 isScale1 = false;
             }
             paths.add(path);
         }
         Assertions.assertEquals(pixelBuffer.getResolutionLevels(), paths.size());
         Assertions.assertEquals("0.1", multiscale.getString("version"));
+        /* OMERO extras */
+        final JsonObject omero = response.getJsonObject("omero");
+        assertNoExtraKeys(omero, "id", "name", "channels", "rdefs");
+        Assertions.assertNotNull(omero.getLong("id"));
+        Assertions.assertEquals(imageName, omero.getString("name"));
+        final JsonArray channels = omero.getJsonArray("channels");
+        Assertions.assertEquals(pixelBuffer.getSizeC(), channels.size());
+        final JsonObject channel1 = channels.getJsonObject(0);
+        final JsonObject channel2 = channels.getJsonObject(1);
+        final JsonObject channel3 = channels.getJsonObject(2);
+        Assertions.assertEquals(channelName1, channel1.getString("label"));
+        Assertions.assertEquals(channelName2, channel2.getString("label"));
+        Assertions.assertEquals(channelName3, channel3.getString("label"));
+        Assertions.assertEquals("FF0000", channel1.getString("color"));
+        Assertions.assertEquals("00FF00", channel2.getString("color"));
+        Assertions.assertEquals("0000FF", channel3.getString("color"));
+        for (final Object channelObject : channels) {
+            final JsonObject channel = (JsonObject) channelObject;
+            assertNoExtraKeys(channel, "active", "coefficient", "color", "family", "inverted", "label", "window");
+            Assertions.assertTrue(channel.getBoolean("active"));
+            Assertions.assertTrue(channel.getDouble("coefficient") > 0);
+            Assertions.assertEquals("linear", channel.getString("family"));
+            Assertions.assertFalse(channel.getBoolean("inverted"));
+            final JsonObject window = channel.getJsonObject("window");
+            assertNoExtraKeys(window, "start", "end", "min", "max");
+            final double start = window.getDouble("start");
+            final double end = window.getDouble("end");
+            final double min = window.getDouble("min");
+            final double max = window.getDouble("max");
+            Assertions.assertTrue(min < max);
+            Assertions.assertTrue(start < end);
+            Assertions.assertTrue(start < max);
+            Assertions.assertTrue(min < end);
+        }
+        final JsonObject rdefs = omero.getJsonObject("rdefs");
+        assertNoExtraKeys(rdefs, "defaultZ", "defaultT", "model");
+        Assertions.assertEquals("color", rdefs.getString("model"));
+        Assertions.assertEquals(defaultZ, rdefs.getInteger("defaultZ"));
+        Assertions.assertEquals(defaultT, rdefs.getInteger("defaultT"));
+    }
+
+    /**
+     * Prepare to note the <em>X</em>-<em>Y</em> size of each resolution.
+     */
+    @BeforeAll
+    public void clearResolutionSizes() {
+        resolutionSizes.clear();
     }
 
     /**
@@ -123,6 +179,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
         final int chunkZ = chunks.getInteger(2);
         final int chunkC = chunks.getInteger(1);
         final int chunkT = chunks.getInteger(0);
+        resolutionSizes.add(new Dimension(shapeX, shapeY));
         if (scale != null) {
             pixelBuffer.setResolutionLevel(pixelBuffer.getResolutionLevels() - 1);
             final long expectShapeX = Math.round(pixelBuffer.getSizeX() * scale);
@@ -164,6 +221,21 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
                 final JsonObject filter = (JsonObject) element;
                 Assertions.assertNotNull(filter.getString("id"));
             }
+        }
+    }
+
+    /**
+     * Check that the <em>X</em>-<em>Y</em> size of the resolutions decreases monotonically.
+     */
+    @AfterAll
+    public void checkResolutionSizesDescend() {
+        Assertions.assertEquals(pixelBuffer.getResolutionLevels(), resolutionSizes.size());
+        Dimension previous = new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);
+        for (final Dimension current : resolutionSizes) {
+            Assertions.assertFalse(current.width > previous.width);
+            Assertions.assertFalse(current.height > previous.height);
+            Assertions.assertTrue(current.width < previous.width || current.height < previous.height);
+            previous = current;
         }
     }
 }
