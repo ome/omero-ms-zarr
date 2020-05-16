@@ -41,19 +41,13 @@ parser.add_argument(
 parser.add_argument(
     "--url-format",
     default="{url}idr/zarr/v0.1/{image}.zarr/",
-    help=(
-        "Format for the layout of URLs on the given service" " [%(default)s]"
-    ),
+    help=("Format for the layout of URLs on the given service" " [%(default)s]"),
 )
 parser.add_argument(
-    "--nested-remote",
-    action='store_true',
-    help="Download from nested chunk path",
+    "--nested-remote", action="store_true", help="Download from nested chunk path",
 )
 parser.add_argument(
-    "--nested-local",
-    action='store_true',
-    help="Download into nested chunk path",
+    "--nested-local", action="store_true", help="Download into nested chunk path",
 )
 parser.add_argument("image", type=int)
 args = parser.parse_args()
@@ -61,8 +55,8 @@ args = parser.parse_args()
 image = args.image
 url = args.endpoint_url
 base_uri = args.url_format.format(image=image, url=url)
-server_chunk_separator = '/' if args.nested_remote else '.'
-client_chunk_separator = '/' if args.nested_local else '.'
+server_chunk_separator = "/" if args.nested_remote else "."
+client_chunk_separator = "/" if args.nested_local else "."
 
 response = requests.get(base_uri + ".zgroup")
 if response.status_code == 200:

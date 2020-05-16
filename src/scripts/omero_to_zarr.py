@@ -33,9 +33,7 @@ def image_to_zarr(image):
         for c in range(size_c):
             for z in range(size_z):
                 # We only want to load from server if not cached locally
-                filename = "{}/{:03d}-{:03d}-{:03d}.npy".format(
-                    image.id, z, c, t
-                )
+                filename = "{}/{:03d}-{:03d}-{:03d}.npy".format(image.id, z, c, t)
                 if not os.path.exists(filename):
                     zct_list.append((z, c, t))
 
@@ -49,9 +47,7 @@ def image_to_zarr(image):
     for t in range(size_t):
         for c in range(size_c):
             for z in range(size_z):
-                filename = "{}/{:03d}-{:03d}-{:03d}.npy".format(
-                    image.id, z, c, t
-                )
+                filename = "{}/{:03d}-{:03d}-{:03d}.npy".format(image.id, z, c, t)
                 if os.path.exists(filename):
                     print("plane (from disk) c:%s, t:%s, z:%s" % (c, t, z))
                     plane = numpy.load(filename)
