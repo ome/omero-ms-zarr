@@ -50,7 +50,9 @@ def main():
         help="enable distributed dashboard (%(default)s)",
     )
     parser.add_argument("source_array", help="array to copy from. must exist.")
-    parser.add_argument("target_array", help="array to write to. must not exist.")
+    parser.add_argument(
+        "target_array", help="array to write to. must not exist."
+    )
     parser.add_argument(
         "chunks",
         default="1,1,1,1024,1024",
@@ -62,7 +64,9 @@ def main():
         from dask.distributed import Client
 
         client = Client()  # noqa
-        input("Visit http://localhost:8787/status - Press Enter to continue...")
+        input(
+            "Visit http://localhost:8787/status - Press Enter to continue..."
+        )
 
     chunks = [int(x) for x in args.chunks.split(",")]
     assert len(chunks) == args.dimensions

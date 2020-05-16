@@ -41,13 +41,19 @@ parser.add_argument(
 parser.add_argument(
     "--url-format",
     default="{url}idr/zarr/v0.1/{image}.zarr/",
-    help=("Format for the layout of URLs on the given service" " [%(default)s]"),
+    help=(
+        "Format for the layout of URLs on the given service" " [%(default)s]"
+    ),
 )
 parser.add_argument(
-    "--nested-remote", action="store_true", help="Download from nested chunk path",
+    "--nested-remote",
+    action="store_true",
+    help="Download from nested chunk path",
 )
 parser.add_argument(
-    "--nested-local", action="store_true", help="Download into nested chunk path",
+    "--nested-local",
+    action="store_true",
+    help="Download into nested chunk path",
 )
 parser.add_argument("image", type=int)
 args = parser.parse_args()
