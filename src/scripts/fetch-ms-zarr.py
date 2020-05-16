@@ -45,12 +45,24 @@ parser.add_argument(
         "Format for the layout of URLs on the given service" " [%(default)s]"
     ),
 )
+parser.add_argument(
+    "--nested-remote",
+    action='store_true',
+    help="Download from nested chunk path",
+)
+parser.add_argument(
+    "--nested-local",
+    action='store_true',
+    help="Download into nested chunk path",
+)
 parser.add_argument("image", type=int)
 args = parser.parse_args()
 
 image = args.image
 url = args.endpoint_url
 base_uri = args.url_format.format(image=image, url=url)
+server_chunk_separator = '/' if args.nested_remote else '.'
+client_chunk_separator = '/' if args.nested_local else '.'
 
 response = requests.get(base_uri + ".zgroup")
 if response.status_code == 200:
@@ -90,8 +102,8 @@ for dataset in datasets:
     chunks = zarray["chunks"]
     ranges = [range(0, -(-s // c)) for (s, c) in zip(shape, chunks)]
     for chunk in itertools.product(*ranges):
-        chunk_name_server = ".".join(map(str, chunk))  # flat remotely
-        chunk_name_client = ".".join(map(str, chunk))  # flat locally
+        chunk_name_server = server_chunk_separator.join(map(str, chunk))
+        chunk_name_client = client_chunk_separator.join(map(str, chunk))
         if args.dry_run:
             response = requests.head(dataset_uri + chunk_name_server)
             if response.status_code != 200:
