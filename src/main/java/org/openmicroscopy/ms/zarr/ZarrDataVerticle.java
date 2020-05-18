@@ -23,22 +23,61 @@ import ome.io.nio.PixelsService;
 
 import java.util.Map;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 
 import org.hibernate.SessionFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Set up HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrDataVerticle implements Verticle {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ZarrDataVerticle.class);
+
+    /**
+     * Log the outcome of an asynchronous action then set a {@link Promise} accordingly.
+     * @author m.t.b.carroll@dundee.ac.uk
+     * @param <X> the value type of the asynchronous action
+     */
+    private static class EventHandler<X> implements Handler<AsyncResult<X>> {
+
+        private final Promise<?> promise;
+        private final String action;
+
+        /**
+         * Construct a new event handler.
+         * @param promise the promise to set on completion
+         * @param action a description of the action, for use in the log message
+         */
+        EventHandler(Promise<?> promise, String action) {
+            this.promise = promise;
+            this.action = action;
+        }
+
+        @Override
+        public void handle(AsyncResult<X> result) {
+            if (result.succeeded()) {
+                LOGGER.info("succeeded: " + action);
+                promise.complete();
+            } else {
+                final Throwable cause = result.cause();
+                LOGGER.error("failed: " + action, cause);
+                promise.fail(cause);
+            }
+        }
+    }
 
     private final Configuration configuration;
     private final SessionFactory sessionFactory;
@@ -75,13 +114,11 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void start(Promise<Void> promise) {
-        /* listen for queries over HTTP */
         final Router router = Router.router(vertx);
-        server = vertx.createHttpServer(new HttpServerOptions().setPort(configuration.getServerPort()));
-        server.requestHandler(router);
+        server = vertx.createHttpServer().requestHandler(router);
         new RequestHandlerForImage(configuration, sessionFactory, pixelsService).handleFor(router);
-        server.listen();  // TODO: does not yet handle failure
-        promise.complete();
+        final int port = configuration.getServerPort();
+        server.listen(port, new EventHandler<>(promise, "listen on TCP port " + port));
     }
 
     /**
@@ -90,8 +127,7 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void stop(Promise<Void> promise) {
-        server.close();
-        promise.complete();
+        server.close(new EventHandler<>(promise, "stop server"));
     }
 
     @Override
