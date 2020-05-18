@@ -405,14 +405,10 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
 
     /**
      * Build OMERO metadata for {@link #returnAttrs(HttpServerResponse, long)} to include with a {@code "omero"} key.
-     * @param imageId the ID of the image being queried
-     * @return the nested metadata, or {@code null} if none could be found
+     * @param pixels the {@link Pixels} instance for which to build the metadata
+     * @return the nested metadata
      */
-    private Map<String, Object> buildOmeroMetadata(long imageId) {
-        final Pixels pixels = getPixels(imageId);
-        if (pixels == null) {
-            return null;
-        }
+    private Map<String, Object> buildOmeroMetadata(Pixels pixels) {
         final Map<String, Object> omero = new HashMap<>();
         final Image image = pixels.getImage();
         omero.put("id", image.getId());
@@ -548,12 +544,16 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
             }
             datasets.add(dataset);
         }
+        final Map<String, Object> omero = buildOmeroMetadata(pixels);
         final Map<String, Object> multiscale = new HashMap<>();
         multiscale.put("version", "0.1");
+        final Object name = omero.get("name");
+        if (name instanceof String) {
+            multiscale.put("name", name);
+        }
         multiscale.put("datasets", datasets);
         final JsonArray multiscales = new JsonArray();
         multiscales.add(multiscale);
-        final Map<String, Object> omero = buildOmeroMetadata(imageId);
         final Map<String, Object> result = new HashMap<>();
         result.put("multiscales", multiscales);
         if (omero != null) {
