@@ -69,11 +69,11 @@ public class ZarrDataVerticle implements Verticle {
         @Override
         public void handle(AsyncResult<X> result) {
             if (result.succeeded()) {
-                LOGGER.info("succeeded: " + action);
+                LOGGER.info("succeeded: {}", action);
                 promise.complete();
             } else {
                 final Throwable cause = result.cause();
-                LOGGER.error("failed: " + action, cause);
+                LOGGER.error("failed: {}", action, cause);
                 promise.fail(cause);
             }
         }
