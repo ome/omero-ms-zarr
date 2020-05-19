@@ -81,7 +81,7 @@ public class ZarrMetadataTest extends ZarrEndpointsTestBase {
         Assertions.assertEquals(1, multiscales.size());
         final JsonObject multiscale = multiscales.getJsonObject(0);
         assertNoExtraKeys(multiscale, "name", "datasets", "version");
-        Assertions.assertEquals(imageName, multiscale.getString("name"));
+        Assertions.assertEquals("default", multiscale.getString("name"));
         final JsonArray datasets = multiscale.getJsonArray("datasets");
         Assertions.assertEquals(pixelBuffer.getResolutionLevels(), datasets.size());
         boolean isScale1 = true;

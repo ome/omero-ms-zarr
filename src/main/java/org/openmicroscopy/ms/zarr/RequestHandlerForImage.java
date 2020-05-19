@@ -547,10 +547,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         final Map<String, Object> omero = buildOmeroMetadata(pixels);
         final Map<String, Object> multiscale = new HashMap<>();
         multiscale.put("version", "0.1");
-        final Object name = omero.get("name");
-        if (name instanceof String) {
-            multiscale.put("name", name);
-        }
+        multiscale.put("name", "default");
         multiscale.put("datasets", datasets);
         final JsonArray multiscales = new JsonArray();
         multiscales.add(multiscale);
