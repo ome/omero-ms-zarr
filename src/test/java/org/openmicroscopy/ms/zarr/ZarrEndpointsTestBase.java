@@ -101,7 +101,7 @@ public abstract class ZarrEndpointsTestBase {
     @Mock
     private RoutingContext context;
 
-    private RequestHandlerForImage handler;
+    private HttpHandler handler;
 
     /* A note of property values for later comparison. */
     protected String imageName;
@@ -195,8 +195,11 @@ public abstract class ZarrEndpointsTestBase {
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
         Mockito.when(context.request()).thenReturn(httpRequest);
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
-        final Map<String, String> configuration = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
-        handler = new RequestHandlerForImage(new Configuration(configuration), sessionFactoryMock, pixelsServiceMock);
+        final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
+        final Configuration configuration = new Configuration(settings);
+        final OmeroDao dao = new OmeroDao(sessionFactoryMock);
+        final PixelBufferCache cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
+        handler = new RequestHandlerForImage(configuration, pixelsServiceMock, cache, dao);
     }
 
     /**

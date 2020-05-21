@@ -48,6 +48,34 @@ public class Configuration {
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
 
+    /* Note a singleton configuration for subsequent injection by Spring. */
+
+    private static Configuration SINGLETON_CONFIGURATION;
+
+    /**
+     * @param configuration the configuration to set for this microservice, call exactly once
+     */
+    public static void setConfiguration(Configuration configuration) {
+        if (configuration == null) {
+            throw new IllegalArgumentException(new NullPointerException());
+        } else if (SINGLETON_CONFIGURATION == null) {
+            SINGLETON_CONFIGURATION = configuration;
+        } else {
+            throw new IllegalStateException("already configured");
+        }
+    }
+
+    /**
+     * @return the configuration of this microservice
+     */
+    public static Configuration getConfiguration() {
+        if (SINGLETON_CONFIGURATION == null) {
+            throw new IllegalStateException("not yet configured");
+        } else {
+            return SINGLETON_CONFIGURATION;
+        }
+    }
+
     /**
      * Convert the given URI path to a regular expression in which {@link #PLACEHOLDER_IMAGE_ID} matches the image ID.
      * @param netPath a URI path, must contain {@link #PLACEHOLDER_IMAGE_ID}

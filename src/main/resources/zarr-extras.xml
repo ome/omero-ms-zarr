@@ -133,4 +133,34 @@
     <property name="memoizerDirectoryLocal" value="${omero.pixeldata.memoizer.dir.local}"/>
   </bean>
 
+  <!-- Connect the microservice beans. -->
+
+  <bean name="configuration" class="org.openmicroscopy.ms.zarr.Configuration" factory-method="getConfiguration"/>
+
+  <bean name="zarrVerticle" class="org.openmicroscopy.ms.zarr.ZarrDataVerticle">
+    <constructor-arg ref="configuration"/>
+    <constructor-arg>
+      <list>
+        <ref bean="zarrResponder"/>
+      </list>
+    </constructor-arg>
+  </bean>
+
+  <bean name="zarrResponder" class="org.openmicroscopy.ms.zarr.RequestHandlerForImage">
+    <constructor-arg ref="configuration"/>
+    <constructor-arg ref="/OMERO/Pixels"/>
+    <constructor-arg ref="cache"/>
+    <constructor-arg ref="DAO"/>
+  </bean>
+
+  <bean name="cache" class="org.openmicroscopy.ms.zarr.PixelBufferCache">
+    <constructor-arg ref="configuration"/>
+    <constructor-arg ref="/OMERO/Pixels"/>
+    <constructor-arg ref="DAO"/>
+  </bean>
+
+  <bean name="DAO" class="org.openmicroscopy.ms.zarr.OmeroDao">
+    <constructor-arg ref="sessionFactory"/>
+  </bean>
+
 </beans>

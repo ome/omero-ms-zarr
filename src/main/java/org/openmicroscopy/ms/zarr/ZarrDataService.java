@@ -19,8 +19,6 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import ome.io.nio.PixelsService;
-
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
@@ -33,7 +31,6 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 
-import org.hibernate.SessionFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -87,14 +84,13 @@ public class ZarrDataService {
                 }
             }
         }
-        /* start up enough of OMERO.server to operate the pixels service */
+        Configuration.setConfiguration(new Configuration(configuration.build()));
+        /* use the application context to start enough of OMERO.server to obtain the verticle */
         final AbstractApplicationContext zarrContext = new ClassPathXmlApplicationContext("zarr-context.xml");
         final ApplicationContext omeroContext = zarrContext.getBean("zarr.data", ApplicationContext.class);
-        final SessionFactory sessionFactory = omeroContext.getBean("sessionFactory", SessionFactory.class);
-        final PixelsService pixelsService = omeroContext.getBean("/OMERO/Pixels", PixelsService.class);
-        /* deploy the verticle which uses the pixels service */
+        final Verticle verticle = omeroContext.getBean("zarrVerticle", ZarrDataVerticle.class);
+        /* deploy the verticle */
         final Vertx vertx = Vertx.vertx();
-        final Verticle verticle = new ZarrDataVerticle(configuration.build(), sessionFactory, pixelsService);
         vertx.deployVerticle(verticle, (AsyncResult<String> result) -> {
             zarrContext.close();
         });

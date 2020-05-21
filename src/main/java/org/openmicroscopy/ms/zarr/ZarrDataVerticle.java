@@ -19,9 +19,7 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import ome.io.nio.PixelsService;
-
-import java.util.Map;
+import java.util.List;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
@@ -32,8 +30,6 @@ import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
-
-import org.hibernate.SessionFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,8 +76,7 @@ public class ZarrDataVerticle implements Verticle {
     }
 
     private final Configuration configuration;
-    private final SessionFactory sessionFactory;
-    private final PixelsService pixelsService;
+    private final List<HttpHandler> requestHandlers;
 
     private Vertx vertx;
 
@@ -90,11 +85,14 @@ public class ZarrDataVerticle implements Verticle {
 
     private HttpServer server;
 
-    public ZarrDataVerticle(Map<String, String> configuration, SessionFactory sessionFactory, PixelsService pixelsService) {
-        this.configuration = new Configuration(configuration);
-        this.sessionFactory = sessionFactory;
-        this.pixelsService = pixelsService;
-
+    /**
+     * Construct a new verticle.
+     * @param configuration the configuration to be set for this verticle
+     * @param requestHandlers the handlers that respond to HTTP requests
+     */
+    public ZarrDataVerticle(Configuration configuration, List<HttpHandler> requestHandlers) {
+        this.configuration = configuration;
+        this.requestHandlers = requestHandlers;
     }
 
     @Override
@@ -116,7 +114,9 @@ public class ZarrDataVerticle implements Verticle {
     public void start(Promise<Void> promise) {
         final Router router = Router.router(vertx);
         server = vertx.createHttpServer().requestHandler(router);
-        new RequestHandlerForImage(configuration, sessionFactory, pixelsService).handleFor(router);
+        for (final HttpHandler requestHandler : requestHandlers) {
+            requestHandler.handleFor(router);
+        }
         final int port = configuration.getServerPort();
         server.listen(port, new EventHandler<>(promise, "listen on TCP port " + port));
     }

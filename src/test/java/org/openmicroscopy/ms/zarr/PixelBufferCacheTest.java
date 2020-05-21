@@ -19,8 +19,6 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import org.openmicroscopy.ms.zarr.RequestHandlerForImage.PixelBufferCache;
-
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
 import ome.model.core.Pixels;
@@ -74,7 +72,7 @@ public class PixelBufferCacheTest {
     @Mock
     private PixelsService pixelsServiceMock;
 
-    private RequestHandlerForImage handler;
+    private PixelBufferCache cache;
 
     /**
      * Set up the pixel buffer cache atop mock services.
@@ -94,9 +92,10 @@ public class PixelBufferCacheTest {
                 Mockito.when(buffer.getResolutionLevels()).thenReturn(RESOLUTION_LEVELS);
                 return buffer;
             }});
-        final Map<String, String> configuration =
-                ImmutableMap.of(Configuration.CONF_BUFFER_CACHE_SIZE, Integer.toString(CACHE_SIZE));
-        handler = new RequestHandlerForImage(new Configuration(configuration), sessionFactoryMock, pixelsServiceMock);
+        final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_BUFFER_CACHE_SIZE, Integer.toString(CACHE_SIZE));
+        final Configuration configuration = new Configuration(settings);
+        final OmeroDao dao = new OmeroDao(sessionFactoryMock);
+        cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
     }
 
     /**
@@ -104,7 +103,7 @@ public class PixelBufferCacheTest {
      */
     @Test
     public void testCacheSizeConfiguration() {
-        Assertions.assertEquals(CACHE_SIZE, handler.cache.getCapacity());
+        Assertions.assertEquals(CACHE_SIZE, cache.getCapacity());
     }
 
     /**
@@ -114,11 +113,11 @@ public class PixelBufferCacheTest {
     public void testValidResolutions() {
         int resolution;
         for (resolution = 0; resolution < RESOLUTION_LEVELS; resolution++) {
-            final PixelBuffer buffer = handler.cache.getPixelBuffer(1, resolution);
+            final PixelBuffer buffer = cache.getPixelBuffer(1, resolution);
             Assertions.assertNotNull(buffer);
-            handler.cache.releasePixelBuffer(buffer);
+            cache.releasePixelBuffer(buffer);
         }
-        final PixelBuffer buffer = handler.cache.getPixelBuffer(1, resolution);
+        final PixelBuffer buffer = cache.getPixelBuffer(1, resolution);
         Assertions.assertNull(buffer);
         /* Check that the use of mocks was as expected. */
         Mockito.verify(pixelsServiceMock,
@@ -130,7 +129,7 @@ public class PixelBufferCacheTest {
      */
     @Test
     public void testReuse() {
-        Assertions.assertTrue(handler.cache.getCapacity() >= 4);
+        Assertions.assertTrue(cache.getCapacity() >= 4);
         Assertions.assertTrue(RESOLUTION_LEVELS >= 2);
         final Map<String, PixelBuffer> buffers = new HashMap<>();
         final int repeats = 3;
@@ -139,14 +138,14 @@ public class PixelBufferCacheTest {
                 for (int resolution = 0; resolution < 2; resolution++) {
                     final String key = String.format("%d:%d", image, resolution);
                     final PixelBuffer expectedBuffer = buffers.get(key);
-                    final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, resolution);
+                    final PixelBuffer actualBuffer = cache.getPixelBuffer(image, resolution);
                     Assertions.assertNotNull(actualBuffer);
                     if (expectedBuffer == null) {
                         buffers.put(key, actualBuffer);
                     } else {
                         Assertions.assertEquals(expectedBuffer, actualBuffer);
                     }
-                    handler.cache.releasePixelBuffer(actualBuffer);
+                    cache.releasePixelBuffer(actualBuffer);
                 }
             }
         }
@@ -161,7 +160,7 @@ public class PixelBufferCacheTest {
      */
     @Test
     public void testExhaustion() throws IOException {
-        final int bufferCapacity = handler.cache.getCapacity();
+        final int bufferCapacity = cache.getCapacity();
         final int expiryCount = 4;
         Assertions.assertTrue(bufferCapacity >= expiryCount * 2);
         final int imageCount = bufferCapacity + expiryCount;
@@ -169,18 +168,18 @@ public class PixelBufferCacheTest {
         /* Fetch an image for every available buffer cache slot. */
         final List<PixelBuffer> originalBuffers = new ArrayList<>();
         for (int image = 0; image < bufferCapacity; image++) {
-            final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
+            final PixelBuffer actualBuffer = cache.getPixelBuffer(image, 0);
             Assertions.assertFalse(originalBuffers.contains(actualBuffer));
             originalBuffers.add(actualBuffer);
-            handler.cache.releasePixelBuffer(actualBuffer);
+            cache.releasePixelBuffer(actualBuffer);
         }
         /* Re-fetch half of the images, those should not be among those whose buffers expire subsequently. */
         Assertions.assertEquals(bufferCapacity, new HashSet<>(originalBuffers).size());
         for (int image = 0; image < bufferCapacity; image += 2) {
-            final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
+            final PixelBuffer actualBuffer = cache.getPixelBuffer(image, 0);
             final PixelBuffer expectedBuffer = originalBuffers.get(image);
             Assertions.assertEquals(expectedBuffer, actualBuffer);
-            handler.cache.releasePixelBuffer(actualBuffer);
+            cache.releasePixelBuffer(actualBuffer);
         }
         /* Figure which images' buffers should now expire. */
         final Set<Integer> imagesExpired = new HashSet<>();
@@ -189,25 +188,25 @@ public class PixelBufferCacheTest {
         }
         /* Fetch some more images, that should expire some buffers from the other initial half. */
         for (int image = bufferCapacity; image < imageCount; image++) {
-            final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
+            final PixelBuffer actualBuffer = cache.getPixelBuffer(image, 0);
             Assertions.assertFalse(originalBuffers.contains(actualBuffer));
             originalBuffers.add(image, actualBuffer);
-            handler.cache.releasePixelBuffer(actualBuffer);
+            cache.releasePixelBuffer(actualBuffer);
         }
         /* Check that for the non-expired buffers the original one is still returned. */
         for (int image = 0; image < imageCount; image++) {
             if (!imagesExpired.contains(image)) {
-                final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
+                final PixelBuffer actualBuffer = cache.getPixelBuffer(image, 0);
                 final PixelBuffer expectedBuffer = originalBuffers.get(image);
                 Assertions.assertEquals(expectedBuffer, actualBuffer);
-                handler.cache.releasePixelBuffer(actualBuffer);
+                cache.releasePixelBuffer(actualBuffer);
             }
         }
         /* Check that for the expired buffers a new one is returned. */
         for (final int image : imagesExpired) {
-            final PixelBuffer actualBuffer = handler.cache.getPixelBuffer(image, 0);
+            final PixelBuffer actualBuffer = cache.getPixelBuffer(image, 0);
             Assertions.assertFalse(originalBuffers.contains(actualBuffer));
-            handler.cache.releasePixelBuffer(actualBuffer);
+            cache.releasePixelBuffer(actualBuffer);
         }
         /* Check that the use of mocks was as expected. */
         Mockito.verify(pixelsServiceMock, Mockito.times(totalFetches)).getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false));
