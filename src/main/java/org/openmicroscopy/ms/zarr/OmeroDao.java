@@ -7,11 +7,16 @@ import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Data Access Object for OMERO's database.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 class OmeroDao {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OmeroDao.class);
 
     private final SessionFactory sessionFactory;
 
@@ -30,6 +35,7 @@ class OmeroDao {
      */
     Pixels getPixels(long imageId) {
         Session session = null;
+        LOGGER.debug("fetch pixels for Image:{}", imageId);
         try {
             session = sessionFactory.openSession();
             session.setDefaultReadOnly(true);

@@ -10,11 +10,16 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Cache open {@link PixelBuffer} instances given the likelihood of repeated calls.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 class PixelBufferCache {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PixelBufferCache.class);
 
     /* An open pixel buffer set to a specific image and resolution. */
     private class Entry {
@@ -49,6 +54,8 @@ class PixelBufferCache {
         this.capacity = configuration.getBufferCacheSize();
         this.pixelsService = pixelsService;
         this.omeroDao = omeroDao;
+
+        LOGGER.info("configured with capacity {}", this.capacity);
     }
 
     /**
@@ -68,9 +75,11 @@ class PixelBufferCache {
      * @return an open pixel buffer
      */
     synchronized PixelBuffer getPixelBuffer(long imageId, int resolution) {
+        LOGGER.debug("fetch pixel buffer for resolution {} of Image:{}", resolution, imageId);
         for (final Entry entry : cache) {
             if (entry.imageId == imageId && entry.resolution == resolution) {
                 /* a cache hit */
+                LOGGER.debug("cache hit");
                 cache.remove(entry);
                 cache.addFirst(entry);
                 final int count = references.get(entry.buffer);
@@ -79,14 +88,17 @@ class PixelBufferCache {
             }
         }
         /* a cache miss */
+        LOGGER.debug("cache miss");
         if (cache.size() == capacity) {
             /* make room for the new cache entry */
+            LOGGER.debug("expiring oldest entry");
             final Entry entry = cache.removeLast();
             releasePixelBuffer(entry.buffer);
         }
         /* open the buffer at the desired resolution */
         final Pixels pixels = omeroDao.getPixels(imageId);
         if (pixels == null) {
+            LOGGER.debug("failed to fetch pixels");
             return null;
         }
         final PixelBuffer buffer = pixelsService.getPixelBuffer(pixels, false);
@@ -97,6 +109,7 @@ class PixelBufferCache {
             } catch (IOException ioe) {
                 /* probably closed anyway */
             }
+            LOGGER.debug("no such resolution, only {} available", resolutions);
             return null;
         }
         buffer.setResolutionLevel(resolutions - resolution - 1);
@@ -105,6 +118,7 @@ class PixelBufferCache {
         cache.addFirst(entry);
         final int count = references.getOrDefault(entry.buffer, 0);
         references.put(entry.buffer, count + 2);
+        LOGGER.debug("recorded new entry");
         return entry.buffer;
     }
 

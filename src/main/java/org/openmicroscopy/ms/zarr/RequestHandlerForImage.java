@@ -19,6 +19,19 @@
 
 package org.openmicroscopy.ms.zarr;
 
+import ome.io.nio.PixelBuffer;
+import ome.io.nio.PixelsService;
+import ome.model.core.Channel;
+import ome.model.core.Image;
+import ome.model.core.Pixels;
+import ome.model.display.ChannelBinding;
+import ome.model.display.CodomainMapContext;
+import ome.model.display.RenderingDef;
+import ome.model.display.ReverseIntensityContext;
+import ome.model.enums.RenderingModel;
+import ome.model.stats.StatsInfo;
+import ome.util.PixelData;
+
 import java.awt.Dimension;
 import java.io.IOException;
 import java.nio.ByteOrder;
@@ -42,24 +55,16 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
-import ome.io.nio.PixelBuffer;
-import ome.io.nio.PixelsService;
-import ome.model.core.Channel;
-import ome.model.core.Image;
-import ome.model.core.Pixels;
-import ome.model.display.ChannelBinding;
-import ome.model.display.CodomainMapContext;
-import ome.model.display.RenderingDef;
-import ome.model.display.ReverseIntensityContext;
-import ome.model.enums.RenderingModel;
-import ome.model.stats.StatsInfo;
-import ome.util.PixelData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provide OMERO image as Zarr via HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class RequestHandlerForImage implements HttpHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandlerForImage.class);
 
     /**
      * Contains the dimensionality of an image.
@@ -156,6 +161,7 @@ public class RequestHandlerForImage implements HttpHandler {
 
     @Override
     public void handleFor(Router router) {
+        LOGGER.info("handling GET requests for router");
         router.getWithRegex(patternForGroup.pattern()).handler(this);
         router.getWithRegex(patternForAttrs.pattern()).handler(this);
         router.getWithRegex(patternForArray.pattern()).handler(this);
@@ -169,6 +175,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param message a message that describes the failure
      */
     private static void fail(HttpServerResponse response, int code, String message) {
+        LOGGER.debug("responding with code {} failure: {}", code, message);
         response.setStatusCode(code);
         response.setStatusMessage(message);
         response.end();
@@ -184,6 +191,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final HttpServerResponse response = request.response();
         if (request.method() == HttpMethod.GET) {
             final String requestPath = request.path();
+            LOGGER.debug("handling GET request path: {}", requestPath);
             try {
                 Matcher matcher;
                 matcher = patternForGroup.matcher(requestPath);
@@ -229,8 +237,10 @@ public class RequestHandlerForImage implements HttpHandler {
      */
     private static void respondWithJson(HttpServerResponse response, JsonObject data) {
         final String responseText = data.toString();
+        final int responseSize = responseText.length();
+        LOGGER.debug("constructed JSON response of size {}", responseSize);
         response.putHeader("Content-Type", "application/json; charset=utf-8");
-        response.putHeader("Content-Length", Integer.toString(responseText.length()));
+        response.putHeader("Content-Length", Integer.toString(responseSize));
         response.end(responseText);
     }
 
@@ -240,6 +250,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param imageId the ID of the image being queried
      */
     private void returnGroup(HttpServerResponse response, long imageId) {
+        LOGGER.debug("providing .zgroup for Image:{}", imageId);
         final Pixels pixels = omeroDao.getPixels(imageId);
         if (pixels == null) {
             fail(response, 404, "no image for that id");
@@ -337,6 +348,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param imageId the ID of the image being queried
      */
     private void returnAttrs(HttpServerResponse response, long imageId) {
+        LOGGER.debug("providing .zattrs for Image:{}", imageId);
         final Pixels pixels = omeroDao.getPixels(imageId);
         if (pixels == null) {
             fail(response, 404, "no image for that id and resolution");
@@ -413,6 +425,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param resolution the resolution to query
      */
     private void returnArray(HttpServerResponse response, long imageId, int resolution) {
+        LOGGER.debug("providing .zarray for resolution {} of Image:{}", resolution, imageId);
         /* gather data from pixels service */
         final DataShape shape;
         final boolean isLittleEndian, isSigned, isFloat;
@@ -465,6 +478,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param chunkId the chunk to query, as <em>T</em>, <em>C</em>, <em>Z</em>, <em>Y</em>, <em>X</em>
      */
     private void returnChunk(HttpServerResponse response, long imageId, int resolution, List<Integer> chunkId) {
+        LOGGER.debug("providing chunk {} of resolution {} of Image:{}", chunkId, resolution, imageId);
         if (chunkId.size() != 5) {
             fail(response, 404, "no chunk with that index");
             return;
@@ -533,8 +547,10 @@ public class RequestHandlerForImage implements HttpHandler {
         }
         /* package data for client */
         final Buffer chunkZipped = compress(chunk);
+        final int responseSize = chunkZipped.length();
+        LOGGER.debug("constructed binary response of size {}", responseSize);
         response.putHeader("Content-Type", "application/octet-stream");
-        response.putHeader("Content-Length", Integer.toString(chunkZipped.length()));
+        response.putHeader("Content-Length", Integer.toString(responseSize));
         response.end(chunkZipped);
     }
 

@@ -112,6 +112,7 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void start(Promise<Void> promise) {
+        LOGGER.info("verticle starting");
         final Router router = Router.router(vertx);
         server = vertx.createHttpServer().requestHandler(router);
         for (final HttpHandler requestHandler : requestHandlers) {
@@ -119,6 +120,7 @@ public class ZarrDataVerticle implements Verticle {
         }
         final int port = configuration.getServerPort();
         server.listen(port, new EventHandler<>(promise, "listen on TCP port " + port));
+        LOGGER.info("verticle started");
     }
 
     /**
@@ -127,7 +129,9 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void stop(Promise<Void> promise) {
+        LOGGER.info("verticle stopping");
         server.close(new EventHandler<>(promise, "stop server"));
+        LOGGER.info("verticle stopped");
     }
 
     @Override

@@ -160,6 +160,12 @@ public class Configuration {
                 throw new IllegalArgumentException(message);
             }
         }
+
+        if (LOGGER.isInfoEnabled()) {
+            for (final Map.Entry<String, String> setting : configuration.entrySet()) {
+                LOGGER.info("configured: {} = {}", setting.getKey(), setting.getValue());
+            }
+        }
     }
 
     /**
