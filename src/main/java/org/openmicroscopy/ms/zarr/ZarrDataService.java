@@ -22,10 +22,7 @@ package org.openmicroscopy.ms.zarr;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Verticle;
@@ -70,21 +67,6 @@ public class ZarrDataService {
         if (overrides != null) {
             propertiesSystem.putAll(overrides);
         }
-        /* determine microservice configuration from system properties */
-        final ImmutableMap.Builder<String, String> configuration = ImmutableMap.builder();
-        final String configurationPrefix = "omero.ms.zarr.";
-        for (final Map.Entry<Object, Object> property : propertiesSystem.entrySet()) {
-            final Object keyObject = property.getKey();
-            final Object valueObject = property.getValue();
-            if (keyObject instanceof String && valueObject instanceof String) {
-                final String key = (String) keyObject;
-                final String value = (String) valueObject;
-                if (key.startsWith(configurationPrefix)) {
-                    configuration.put(key.substring(configurationPrefix.length()), value);
-                }
-            }
-        }
-        Configuration.setConfiguration(new Configuration(configuration.build()));
         /* use the application context to start enough of OMERO.server to obtain the verticle */
         final AbstractApplicationContext zarrContext = new ClassPathXmlApplicationContext("zarr-context.xml");
         final ApplicationContext omeroContext = zarrContext.getBean("zarr.data", ApplicationContext.class);

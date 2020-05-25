@@ -135,7 +135,7 @@
 
   <!-- Connect the microservice beans. -->
 
-  <bean name="configuration" class="org.openmicroscopy.ms.zarr.Configuration" factory-method="getConfiguration"/>
+  <bean name="configuration" class="org.openmicroscopy.ms.zarr.Configuration"/>
 
   <bean name="zarrVerticle" class="org.openmicroscopy.ms.zarr.ZarrDataVerticle">
     <constructor-arg ref="configuration"/>

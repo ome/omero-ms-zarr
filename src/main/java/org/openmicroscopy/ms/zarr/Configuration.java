@@ -20,6 +20,9 @@
 package org.openmicroscopy.ms.zarr;
 
 import java.util.Map;
+import java.util.Properties;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,34 +51,6 @@ public class Configuration {
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
 
-    /* Note a singleton configuration for subsequent injection by Spring. */
-
-    private static Configuration SINGLETON_CONFIGURATION;
-
-    /**
-     * @param configuration the configuration to set for this microservice, call exactly once
-     */
-    public static void setConfiguration(Configuration configuration) {
-        if (configuration == null) {
-            throw new IllegalArgumentException(new NullPointerException());
-        } else if (SINGLETON_CONFIGURATION == null) {
-            SINGLETON_CONFIGURATION = configuration;
-        } else {
-            throw new IllegalStateException("already configured");
-        }
-    }
-
-    /**
-     * @return the configuration of this microservice
-     */
-    public static Configuration getConfiguration() {
-        if (SINGLETON_CONFIGURATION == null) {
-            throw new IllegalStateException("not yet configured");
-        } else {
-            return SINGLETON_CONFIGURATION;
-        }
-    }
-
     /**
      * Convert the given URI path to a regular expression in which {@link #PLACEHOLDER_IMAGE_ID} matches the image ID.
      * @param netPath a URI path, must contain {@link #PLACEHOLDER_IMAGE_ID}
@@ -95,10 +70,38 @@ public class Configuration {
     }
 
     /**
+     * Construct a new read-only configuration drawn from system properties of the form {@code omero.ms.zarr.*}.
+     */
+    public Configuration() {
+        final Properties propertiesSystem = System.getProperties();
+        final ImmutableMap.Builder<String, String> configuration = ImmutableMap.builder();
+        final String configurationPrefix = "omero.ms.zarr.";
+        for (final Map.Entry<Object, Object> property : propertiesSystem.entrySet()) {
+            final Object keyObject = property.getKey();
+            final Object valueObject = property.getValue();
+            if (keyObject instanceof String && valueObject instanceof String) {
+                final String key = (String) keyObject;
+                final String value = (String) valueObject;
+                if (key.startsWith(configurationPrefix)) {
+                    configuration.put(key.substring(configurationPrefix.length()), value);
+                }
+            }
+        }
+        setConfiguration(configuration.build());
+    }
+
+    /**
      * Construct a new read-only configuration.
      * @param configuration a map of configuration keys and values, may be empty but must not be {@code null}
      */
     public Configuration(Map<String, String> configuration) {
+        setConfiguration(configuration);
+    }
+
+    /**
+     * @param configuration the configuration keys and values to apply over the current state.
+     */
+    private void setConfiguration(Map<String, String> configuration) {
         final String cacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
         final String chunkSize = configuration.get(CONF_CHUNK_SIZE_MIN);
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
