@@ -74,7 +74,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final int xSize, ySize, cSize, zSize, tSize;
         final int byteWidth;
 
-        int xTile, yTile;
+        int xTile, yTile, zTile;
 
         /**
          * @param buffer the pixel buffer from which to extract the dimensionality
@@ -94,20 +94,23 @@ public class RequestHandlerForImage implements HttpHandler {
                 xTile = tileSize.width;
                 yTile = tileSize.height;
             }
+            zTile = 1;
 
             byteWidth = buffer.getByteWidth();
         }
 
         /**
-         * Attempt to increase the <em>X</em>, <em>Y</em> tile size so the tile occupies at least the given number of bytes.
+         * Attempt to increase the <em>X</em>, <em>Y</em>, <em>Z</em> tile size so the tile occupies at least the given number of
+         * bytes.
          * @param target the minimum target size, in bytes
          * @return this, for method chaining
          */
         DataShape adjustTileSize(int target) {
             final int pixelTarget = target / byteWidth;
-            while ((long) xTile * yTile < pixelTarget) {
+            while ((long) xTile * yTile * zTile < pixelTarget) {
                 final boolean isIncreaseX = xTile < xSize;
                 final boolean isIncreaseY = yTile < ySize;
+                final boolean isIncreaseZ = zTile < zSize;
                 if (isIncreaseX && xTile * 3 >= xSize) {
                     xTile = xSize;
                 } else if (isIncreaseY && yTile * 3 >= ySize) {
@@ -116,6 +119,11 @@ public class RequestHandlerForImage implements HttpHandler {
                     xTile <<= 1;
                 } else if (isIncreaseY) {
                     yTile <<= 1;
+                } else if (isIncreaseZ) {
+                    zTile <<= 1;
+                    /* Spread planes evenly across chunks. */
+                    final int zCount = (zSize + zTile - 1) / zTile;
+                    zTile = (zSize + zCount - 1) / zCount;
                 } else {
                     break;
                 }
@@ -460,7 +468,7 @@ public class RequestHandlerForImage implements HttpHandler {
         result.put("zarr_format", 2);
         result.put("order", "C");
         result.put("shape", ImmutableList.of(shape.tSize, shape.cSize, shape.zSize, shape.ySize, shape.xSize));
-        result.put("chunks", ImmutableList.of(1, 1, 1, shape.yTile, shape.xTile));
+        result.put("chunks", ImmutableList.of(1, 1, shape.zTile, shape.yTile, shape.xTile));
         result.put("fill_value", 0);
         final char byteOrder = shape.byteWidth == 1 ? '|' : isLittleEndian ? '<' : '>';
         final char byteType = isFloat ? 'f' : isSigned ? 'i' : 'u';
@@ -495,13 +503,16 @@ public class RequestHandlerForImage implements HttpHandler {
             final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSize);
             final int x = shape.xTile * chunkId.get(4);
             final int y = shape.yTile * chunkId.get(3);
-            final int z = chunkId.get(2);
+            final int z = shape.zTile * chunkId.get(2);
             final int c = chunkId.get(1);
             final int t = chunkId.get(0);
             if (x >= shape.xSize || y >= shape.ySize || c >= shape.cSize || z >= shape.zSize || t >= shape.tSize) {
                 fail(response, 404, "no chunk with that index");
                 return;
             }
+            chunk = new byte[shape.xTile * shape.yTile * shape.zTile * shape.byteWidth];
+            for (int plane = 0; plane < shape.zTile && z + plane < shape.zSize; plane++) {
+            final int planeOffset = plane * (chunk.length / shape.zTile);
             final PixelData tile;
             if (x + shape.xTile > shape.xSize) {
                 /* a tile that crosses the right side of the image */
@@ -514,29 +525,30 @@ public class RequestHandlerForImage implements HttpHandler {
                     /* does not cross the bottom side */
                     yd = shape.yTile;
                 }
-                tile = buffer.getTile(z, c, t, x, y, xd, yd);
+                tile = buffer.getTile(z + plane, c, t, x, y, xd, yd);
                 final byte[] chunkSrc = tile.getData().array();
-                chunk = new byte[shape.xTile * shape.yTile * shape.byteWidth];
-                /* must now assemble row-by-row into a full-sized chunk */
+                /* must now assemble row-by-row into a plane in the chunk */
                 for (int row = 0; row < yd; row++) {
                     final int srcIndex = row * xd * shape.byteWidth;
-                    final int dstIndex = row * shape.xTile * shape.byteWidth;
+                    final int dstIndex = row * shape.xTile * shape.byteWidth + planeOffset;
                     System.arraycopy(chunkSrc, srcIndex, chunk, dstIndex, xd * shape.byteWidth);
                 }
-            } else if (y + shape.yTile > shape.ySize) {
-                /* a tile that crosses the bottom of the image */
-                final int yd = shape.ySize - y;
-                tile = buffer.getTile(z, c, t, x, y, shape.xTile, yd);
-                final byte[] chunkSrc = tile.getData().array();
-                chunk = new byte[shape.xTile * shape.yTile * shape.byteWidth];
-                /* simply copy into the first part of the chunk */
-                System.arraycopy(chunkSrc, 0, chunk, 0, chunkSrc.length);
             } else {
-                /* the tile fills a chunk */
-                tile = buffer.getTile(z, c, t, x, y, shape.xTile, shape.yTile);
-                chunk = tile.getData().array();
+                final int yd;
+                if (y + shape.yTile > shape.ySize) {
+                /* a tile that crosses the bottom of the image */
+                    yd = shape.ySize - y;
+                } else {
+                /* the tile fills a plane in the chunk */
+                    yd = shape.yTile;
+                }
+                tile = buffer.getTile(z + plane, c, t, x, y, shape.xTile, yd);
+                final byte[] chunkSrc = tile.getData().array();
+                /* simply copy into the plane */
+                System.arraycopy(chunkSrc, 0, chunk, planeOffset, chunkSrc.length);
             }
             tile.dispose();
+            }
         } catch (Exception e) {
             fail(response, 500, "query failed");
             return;
