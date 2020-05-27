@@ -70,11 +70,13 @@ public class TileSizeAdjustmentTest {
         /* Determine the sizes, both before and after adjustment for comparison. */
         final int beforeWidth = shape.xTile;
         final int beforeHeight = shape.yTile;
-        final int beforeChunkSize = beforeWidth * beforeHeight * shape.byteWidth;
+        final int beforePlanes = shape.zTile;
+        final int beforeChunkSize = beforeWidth * beforeHeight * beforePlanes * shape.byteWidth;
         shape.adjustTileSize(targetChunkSize);
         final int afterWidth = shape.xTile;
         final int afterHeight = shape.yTile;
-        final int afterChunkSize = afterWidth * afterHeight * shape.byteWidth;
+        final int afterPlanes = shape.zTile;
+        final int afterChunkSize = afterWidth * afterHeight * afterPlanes * shape.byteWidth;
         /* Tile dimensions larger than image dimensions should not be adjusted. */
         if (beforeWidth >= shape.xSize) {
             Assertions.assertEquals(beforeWidth, afterWidth);
@@ -86,6 +88,7 @@ public class TileSizeAdjustmentTest {
         if (beforeChunkSize >= targetChunkSize) {
             Assertions.assertEquals(beforeWidth, afterWidth);
             Assertions.assertEquals(beforeHeight, afterHeight);
+            Assertions.assertEquals(beforePlanes, afterPlanes);
         }
         /* If the adjusted tile size is not large enough then it should be at least the image size. */
         if (afterChunkSize < targetChunkSize) {
@@ -99,6 +102,7 @@ public class TileSizeAdjustmentTest {
             } else {
                 Assertions.assertEquals(shape.ySize, afterHeight);
             }
+            Assertions.assertEquals(shape.zSize, afterPlanes);
         }
         /* Tile size changes must be increases and either to a multiple of the previous or to the image size. */
         if (beforeWidth != afterWidth) {
@@ -112,6 +116,16 @@ public class TileSizeAdjustmentTest {
             if (afterHeight != shape.ySize) {
                 Assertions.assertEquals(0, afterHeight % beforeHeight);
             }
+        }
+        if (beforePlanes > afterPlanes) {
+            /* Plane count reduction must not increase chunk count. */
+            final int beforeCount = (shape.zSize + beforePlanes - 1) / beforePlanes;
+            final int afterCount = (shape.zSize + afterPlanes - 1) / afterPlanes;
+            Assertions.assertEquals(beforeCount, afterCount);
+        } else {
+            /* Plane count must be no greater than required by chunk size. */
+            final long smallerChunkSize = (long) afterChunkSize * (shape.zTile - 1) / shape.zTile;
+            Assertions.assertTrue(smallerChunkSize < targetChunkSize);
         }
     }
 
