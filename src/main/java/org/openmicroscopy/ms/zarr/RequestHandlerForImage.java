@@ -512,42 +512,42 @@ public class RequestHandlerForImage implements HttpHandler {
             }
             chunk = new byte[shape.xTile * shape.yTile * shape.zTile * shape.byteWidth];
             for (int plane = 0; plane < shape.zTile && z + plane < shape.zSize; plane++) {
-            final int planeOffset = plane * (chunk.length / shape.zTile);
-            final PixelData tile;
-            if (x + shape.xTile > shape.xSize) {
-                /* a tile that crosses the right side of the image */
-                final int xd = shape.xSize - x;
-                final int yd;
-                if (y + shape.yTile > shape.ySize) {
-                    /* also crosses the bottom side */
-                    yd = shape.ySize - y;
+                final int planeOffset = plane * (chunk.length / shape.zTile);
+                final PixelData tile;
+                if (x + shape.xTile > shape.xSize) {
+                    /* a tile that crosses the right side of the image */
+                    final int xd = shape.xSize - x;
+                    final int yd;
+                    if (y + shape.yTile > shape.ySize) {
+                        /* also crosses the bottom side */
+                        yd = shape.ySize - y;
+                    } else {
+                        /* does not cross the bottom side */
+                        yd = shape.yTile;
+                    }
+                    tile = buffer.getTile(z + plane, c, t, x, y, xd, yd);
+                    final byte[] chunkSrc = tile.getData().array();
+                    /* must now assemble row-by-row into a plane in the chunk */
+                    for (int row = 0; row < yd; row++) {
+                        final int srcIndex = row * xd * shape.byteWidth;
+                        final int dstIndex = row * shape.xTile * shape.byteWidth + planeOffset;
+                        System.arraycopy(chunkSrc, srcIndex, chunk, dstIndex, xd * shape.byteWidth);
+                    }
                 } else {
-                    /* does not cross the bottom side */
-                    yd = shape.yTile;
+                    final int yd;
+                    if (y + shape.yTile > shape.ySize) {
+                        /* a tile that crosses the bottom of the image */
+                        yd = shape.ySize - y;
+                    } else {
+                        /* the tile fills a plane in the chunk */
+                        yd = shape.yTile;
+                    }
+                    tile = buffer.getTile(z + plane, c, t, x, y, shape.xTile, yd);
+                    final byte[] chunkSrc = tile.getData().array();
+                    /* simply copy into the plane */
+                    System.arraycopy(chunkSrc, 0, chunk, planeOffset, chunkSrc.length);
                 }
-                tile = buffer.getTile(z + plane, c, t, x, y, xd, yd);
-                final byte[] chunkSrc = tile.getData().array();
-                /* must now assemble row-by-row into a plane in the chunk */
-                for (int row = 0; row < yd; row++) {
-                    final int srcIndex = row * xd * shape.byteWidth;
-                    final int dstIndex = row * shape.xTile * shape.byteWidth + planeOffset;
-                    System.arraycopy(chunkSrc, srcIndex, chunk, dstIndex, xd * shape.byteWidth);
-                }
-            } else {
-                final int yd;
-                if (y + shape.yTile > shape.ySize) {
-                /* a tile that crosses the bottom of the image */
-                    yd = shape.ySize - y;
-                } else {
-                /* the tile fills a plane in the chunk */
-                    yd = shape.yTile;
-                }
-                tile = buffer.getTile(z + plane, c, t, x, y, shape.xTile, yd);
-                final byte[] chunkSrc = tile.getData().array();
-                /* simply copy into the plane */
-                System.arraycopy(chunkSrc, 0, chunk, planeOffset, chunkSrc.length);
-            }
-            tile.dispose();
+                tile.dispose();
             }
         } catch (Exception e) {
             fail(response, 500, "query failed");
