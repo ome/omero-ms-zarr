@@ -21,13 +21,10 @@ package org.openmicroscopy.ms.zarr;
 
 import java.util.List;
 
+import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Context;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.Verticle;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 
@@ -38,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * Set up HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class ZarrDataVerticle implements Verticle {
+public class ZarrDataVerticle extends AbstractVerticle {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ZarrDataVerticle.class);
 
@@ -78,11 +75,6 @@ public class ZarrDataVerticle implements Verticle {
     private final Configuration configuration;
     private final List<HttpHandler> requestHandlers;
 
-    private Vertx vertx;
-
-    @SuppressWarnings("unused")
-    private Context context;
-
     private HttpServer server;
 
     /**
@@ -93,17 +85,6 @@ public class ZarrDataVerticle implements Verticle {
     public ZarrDataVerticle(Configuration configuration, List<HttpHandler> requestHandlers) {
         this.configuration = configuration;
         this.requestHandlers = requestHandlers;
-    }
-
-    @Override
-    public Vertx getVertx() {
-        return vertx;
-    }
-
-    @Override
-    public void init(Vertx vertx, Context context) {
-        this.vertx = vertx;
-        this.context = context;
     }
 
     /**
@@ -132,15 +113,5 @@ public class ZarrDataVerticle implements Verticle {
         LOGGER.info("verticle stopping");
         server.close(new EventHandler<>(promise, "stop server"));
         LOGGER.info("verticle stopped");
-    }
-
-    @Override
-    public void start(Future<Void> startFuture) {
-        throw new UnsupportedOperationException("obsolete in later Vert.x");
-    }
-
-    @Override
-    public void stop(Future<Void> stopFuture) {
-        throw new UnsupportedOperationException("obsolete in later Vert.x");
     }
 }
