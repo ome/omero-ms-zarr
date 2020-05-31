@@ -15,8 +15,8 @@ repositories {
 dependencies {
     implementation 'org.openmicroscopy:omero-server:5.5.6'
     implementation 'com.google.guava:guava:27.1-jre'
-    implementation 'io.vertx:vertx-core:3.9.0'
-    implementation 'io.vertx:vertx-web:3.9.0'
+    implementation 'io.vertx:vertx-core:3.9.1'
+    implementation 'io.vertx:vertx-web:3.9.1'
 
     implementation platform('software.amazon.awssdk:bom:2.11.10')
     implementation 'software.amazon.awssdk:sts'
@@ -25,7 +25,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.6.2'
     testImplementation 'org.mockito:mockito-core:3.3.3'
     testImplementation 'org.mockito:mockito-junit-jupiter:3.3.3'
-    testImplementation 'io.vertx:vertx-codegen:3.9.0'  // workaround for JDK-8152174
+    testImplementation 'io.vertx:vertx-codegen:3.9.1'  // workaround for JDK-8152174
     testImplementation 'software.amazon.awssdk:s3'
 }
 
