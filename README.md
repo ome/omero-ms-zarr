@@ -20,6 +20,12 @@ and try
 
     src/scripts/fetch-ms-zarr.py --endpoint-url http://localhost:8080/ --url-format '{url}image/{image}.zarr/' 1234
 
+or
+
+    curl http://localhost:8080/image/1234.zarr/.zattrs
+
+where `1234` is an image ID.
+
 
 ### Configuration
 
