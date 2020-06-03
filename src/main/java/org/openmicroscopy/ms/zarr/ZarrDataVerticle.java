@@ -19,21 +19,14 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import ome.io.nio.PixelsService;
+import java.util.List;
 
-import java.util.Map;
-
+import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Context;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.Verticle;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
-
-import org.hibernate.SessionFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * Set up HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class ZarrDataVerticle implements Verticle {
+public class ZarrDataVerticle extends AbstractVerticle {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ZarrDataVerticle.class);
 
@@ -80,32 +73,18 @@ public class ZarrDataVerticle implements Verticle {
     }
 
     private final Configuration configuration;
-    private final SessionFactory sessionFactory;
-    private final PixelsService pixelsService;
-
-    private Vertx vertx;
-
-    @SuppressWarnings("unused")
-    private Context context;
+    private final List<HttpHandler> requestHandlers;
 
     private HttpServer server;
 
-    public ZarrDataVerticle(Map<String, String> configuration, SessionFactory sessionFactory, PixelsService pixelsService) {
-        this.configuration = new Configuration(configuration);
-        this.sessionFactory = sessionFactory;
-        this.pixelsService = pixelsService;
-
-    }
-
-    @Override
-    public Vertx getVertx() {
-        return vertx;
-    }
-
-    @Override
-    public void init(Vertx vertx, Context context) {
-        this.vertx = vertx;
-        this.context = context;
+    /**
+     * Construct a new verticle.
+     * @param configuration the configuration to be set for this verticle
+     * @param requestHandlers the handlers that respond to HTTP requests
+     */
+    public ZarrDataVerticle(Configuration configuration, List<HttpHandler> requestHandlers) {
+        this.configuration = configuration;
+        this.requestHandlers = requestHandlers;
     }
 
     /**
@@ -114,11 +93,15 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void start(Promise<Void> promise) {
+        LOGGER.info("verticle starting");
         final Router router = Router.router(vertx);
         server = vertx.createHttpServer().requestHandler(router);
-        new RequestHandlerForImage(configuration, sessionFactory, pixelsService).handleFor(router);
+        for (final HttpHandler requestHandler : requestHandlers) {
+            requestHandler.handleFor(router);
+        }
         final int port = configuration.getServerPort();
         server.listen(port, new EventHandler<>(promise, "listen on TCP port " + port));
+        LOGGER.info("verticle started");
     }
 
     /**
@@ -127,16 +110,8 @@ public class ZarrDataVerticle implements Verticle {
      */
     @Override
     public void stop(Promise<Void> promise) {
+        LOGGER.info("verticle stopping");
         server.close(new EventHandler<>(promise, "stop server"));
-    }
-
-    @Override
-    public void start(Future<Void> startFuture) {
-        throw new UnsupportedOperationException("obsolete in later Vert.x");
-    }
-
-    @Override
-    public void stop(Future<Void> stopFuture) {
-        throw new UnsupportedOperationException("obsolete in later Vert.x");
+        LOGGER.info("verticle stopped");
     }
 }

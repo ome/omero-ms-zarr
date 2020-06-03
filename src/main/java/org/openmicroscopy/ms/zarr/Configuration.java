@@ -20,6 +20,9 @@
 package org.openmicroscopy.ms.zarr;
 
 import java.util.Map;
+import java.util.Properties;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,10 +70,38 @@ public class Configuration {
     }
 
     /**
+     * Construct a new read-only configuration drawn from system properties of the form {@code omero.ms.zarr.*}.
+     */
+    public Configuration() {
+        final Properties propertiesSystem = System.getProperties();
+        final ImmutableMap.Builder<String, String> configuration = ImmutableMap.builder();
+        final String configurationPrefix = "omero.ms.zarr.";
+        for (final Map.Entry<Object, Object> property : propertiesSystem.entrySet()) {
+            final Object keyObject = property.getKey();
+            final Object valueObject = property.getValue();
+            if (keyObject instanceof String && valueObject instanceof String) {
+                final String key = (String) keyObject;
+                final String value = (String) valueObject;
+                if (key.startsWith(configurationPrefix)) {
+                    configuration.put(key.substring(configurationPrefix.length()), value);
+                }
+            }
+        }
+        setConfiguration(configuration.build());
+    }
+
+    /**
      * Construct a new read-only configuration.
      * @param configuration a map of configuration keys and values, may be empty but must not be {@code null}
      */
     public Configuration(Map<String, String> configuration) {
+        setConfiguration(configuration);
+    }
+
+    /**
+     * @param configuration the configuration keys and values to apply over the current state.
+     */
+    private void setConfiguration(Map<String, String> configuration) {
         final String cacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
         final String chunkSize = configuration.get(CONF_CHUNK_SIZE_MIN);
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
@@ -130,6 +161,12 @@ public class Configuration {
                 final String message = "TCP port number must be an integer, not " + netPort;
                 LOGGER.error(message);
                 throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (LOGGER.isInfoEnabled()) {
+            for (final Map.Entry<String, String> setting : configuration.entrySet()) {
+                LOGGER.info("configured: {} = {}", setting.getKey(), setting.getValue());
             }
         }
     }

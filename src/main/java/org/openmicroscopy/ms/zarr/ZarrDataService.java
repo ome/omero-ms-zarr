@@ -19,21 +19,15 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import ome.io.nio.PixelsService;
-
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
 
-import org.hibernate.SessionFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -73,28 +67,12 @@ public class ZarrDataService {
         if (overrides != null) {
             propertiesSystem.putAll(overrides);
         }
-        /* determine microservice configuration from system properties */
-        final ImmutableMap.Builder<String, String> configuration = ImmutableMap.builder();
-        final String configurationPrefix = "omero.ms.zarr.";
-        for (final Map.Entry<Object, Object> property : propertiesSystem.entrySet()) {
-            final Object keyObject = property.getKey();
-            final Object valueObject = property.getValue();
-            if (keyObject instanceof String && valueObject instanceof String) {
-                final String key = (String) keyObject;
-                final String value = (String) valueObject;
-                if (key.startsWith(configurationPrefix)) {
-                    configuration.put(key.substring(configurationPrefix.length()), value);
-                }
-            }
-        }
-        /* start up enough of OMERO.server to operate the pixels service */
+        /* use the application context to start enough of OMERO.server to obtain the verticle */
         final AbstractApplicationContext zarrContext = new ClassPathXmlApplicationContext("zarr-context.xml");
         final ApplicationContext omeroContext = zarrContext.getBean("zarr.data", ApplicationContext.class);
-        final SessionFactory sessionFactory = omeroContext.getBean("sessionFactory", SessionFactory.class);
-        final PixelsService pixelsService = omeroContext.getBean("/OMERO/Pixels", PixelsService.class);
-        /* deploy the verticle which uses the pixels service */
+        final Verticle verticle = omeroContext.getBean("zarrVerticle", ZarrDataVerticle.class);
+        /* deploy the verticle */
         final Vertx vertx = Vertx.vertx();
-        final Verticle verticle = new ZarrDataVerticle(configuration.build(), sessionFactory, pixelsService);
         vertx.deployVerticle(verticle, (AsyncResult<String> result) -> {
             zarrContext.close();
         });

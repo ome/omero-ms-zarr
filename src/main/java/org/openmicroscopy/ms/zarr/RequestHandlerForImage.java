@@ -19,36 +19,6 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import java.awt.Dimension;
-import java.io.IOException;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.zip.Deflater;
-
-import org.hibernate.Query;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-
-import com.google.common.collect.ImmutableList;
-
-import io.vertx.core.Handler;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
 import ome.model.core.Channel;
@@ -62,121 +32,39 @@ import ome.model.enums.RenderingModel;
 import ome.model.stats.StatsInfo;
 import ome.util.PixelData;
 
+import java.awt.Dimension;
+import java.io.IOException;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.Deflater;
+
+import com.google.common.collect.ImmutableList;
+
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Provide OMERO image as Zarr via HTTP endpoint.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class RequestHandlerForImage implements Handler<RoutingContext> {
+public class RequestHandlerForImage implements HttpHandler {
 
-    /**
-     * Cache open {@link PixelBuffer} instances given the likelihood of repeated calls.
-     * @author m.t.b.carroll@dundee.ac.uk
-     */
-    class PixelBufferCache {
-
-        /* An open pixel buffer set to a specific image and resolution. */
-        private class Entry {
-
-            final long imageId;
-            final int resolution;
-            final PixelBuffer buffer;
-
-            Entry(long imageId, int resolution, PixelBuffer buffer) {
-                this.imageId = imageId;
-                this.resolution = resolution;
-                this.buffer = buffer;
-            }
-        }
-
-        /* How many pixel buffers to keep open. Different resolutions count as different buffers. */
-        private final int capacity;
-
-        private Deque<Entry> cache = new LinkedList<>();
-        private Map<PixelBuffer, Integer> references = new HashMap<>();
-
-        /**
-         * Construct a new pixel buffer cache.
-         * @param capacity the capacity of this cache
-         */
-        PixelBufferCache(int capacity) {
-            this.capacity = capacity;
-        }
-
-        /**
-         * @return the capacity of this buffer as set by {@link #PixelBufferCache(int)}
-         */
-        int getCapacity() {
-            return capacity;
-        }
-
-        /**
-         * Get a pixel buffer from the cache, opening it if necessary.
-         * Call {@link #releasePixelBuffer(PixelBuffer)} on the return value exactly once when done,
-         * do not call {@link PixelBuffer#close()} directly.
-         * May cause expiry of another buffer from the cache.
-         * @param imageId an image ID
-         * @param resolution a resolution of that image
-         * @return an open pixel buffer
-         */
-        synchronized PixelBuffer getPixelBuffer(long imageId, int resolution) {
-            for (final Entry entry : cache) {
-                if (entry.imageId == imageId && entry.resolution == resolution) {
-                    /* a cache hit */
-                    cache.remove(entry);
-                    cache.addFirst(entry);
-                    final int count = references.get(entry.buffer);
-                    references.put(entry.buffer, count + 1);
-                    return entry.buffer;
-                }
-            }
-            /* a cache miss */
-            if (cache.size() == capacity) {
-                /* make room for the new cache entry */
-                final Entry entry = cache.removeLast();
-                releasePixelBuffer(entry.buffer);
-            }
-            /* open the buffer at the desired resolution */
-            final Pixels pixels = getPixels(imageId);
-            if (pixels == null) {
-                return null;
-            }
-            final PixelBuffer buffer = pixelsService.getPixelBuffer(pixels, false);
-            final int resolutions = buffer.getResolutionLevels();
-            if (resolution >= resolutions) {
-                try {
-                    buffer.close();
-                } catch (IOException ioe) {
-                    /* probably closed anyway */
-                }
-                return null;
-            }
-            buffer.setResolutionLevel(resolutions - resolution - 1);
-            /* enter the buffer into the cache */
-            final Entry entry = new Entry(imageId, resolution, buffer);
-            cache.addFirst(entry);
-            final int count = references.getOrDefault(entry.buffer, 0);
-            references.put(entry.buffer, count + 2);
-            return entry.buffer;
-        }
-
-        /**
-         * Notify the cache that the buffer previously obtained from {@link #getPixelBuffer(long, int)} is no longer in use.
-         * @param buffer the buffer that can now be closed
-         */
-        synchronized void releasePixelBuffer(PixelBuffer buffer) {
-            final int count = references.get(buffer);
-            if (count == 1) {
-                try {
-                    references.remove(buffer);
-                    buffer.close();
-                } catch (IOException ioe) {
-                    /* probably closed anyway */
-                }
-            } else {
-                references.put(buffer, count - 1);
-            }
-        }
-    }
+    private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandlerForImage.class);
 
     /**
      * Contains the dimensionality of an image.
@@ -236,10 +124,9 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         }
     }
 
-    private final SessionFactory sessionFactory;
     private final PixelsService pixelsService;
-
-    final PixelBufferCache cache;
+    private final PixelBufferCache cache;
+    private final OmeroDao omeroDao;
 
     private final int chunkSize;
     private final int deflateLevel;
@@ -252,14 +139,15 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
     /**
      * Create the HTTP request handler.
      * @param configuration the configuration of this microservice
-     * @param sessionFactory he Hibernate session factory
      * @param pixelsService the OMERO pixels service
+     * @param pixelBufferCache the pixel buffer cache
+     * @param omeroDao the OMERO data access object
      */
-    public RequestHandlerForImage(Configuration configuration, SessionFactory sessionFactory, PixelsService pixelsService) {
-        this.sessionFactory = sessionFactory;
+    public RequestHandlerForImage(Configuration configuration, PixelsService pixelsService, PixelBufferCache pixelBufferCache,
+            OmeroDao omeroDao) {
         this.pixelsService = pixelsService;
-
-        this.cache = new PixelBufferCache(configuration.getBufferCacheSize());
+        this.cache = pixelBufferCache;
+        this.omeroDao = omeroDao;
 
         this.chunkSize = configuration.getMinimumChunkSize();
         this.deflateLevel = configuration.getDeflateLevel();
@@ -271,11 +159,9 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         this.patternForChunk = Pattern.compile(path + "(\\d+)/(\\d+([/.]\\d+)*)");
     }
 
-    /**
-     * Add this instance as GET handler for the API paths.
-     * @param router the router for which this can handle requests
-     */
+    @Override
     public void handleFor(Router router) {
+        LOGGER.info("handling GET requests for router");
         router.getWithRegex(patternForGroup.pattern()).handler(this);
         router.getWithRegex(patternForAttrs.pattern()).handler(this);
         router.getWithRegex(patternForArray.pattern()).handler(this);
@@ -289,6 +175,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param message a message that describes the failure
      */
     private static void fail(HttpServerResponse response, int code, String message) {
+        LOGGER.debug("responding with code {} failure: {}", code, message);
         response.setStatusCode(code);
         response.setStatusMessage(message);
         response.end();
@@ -304,6 +191,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         final HttpServerResponse response = request.response();
         if (request.method() == HttpMethod.GET) {
             final String requestPath = request.path();
+            LOGGER.debug("handling GET request path: {}", requestPath);
             try {
                 Matcher matcher;
                 matcher = patternForGroup.matcher(requestPath);
@@ -343,47 +231,16 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
     }
 
     /**
-     * Get a pixels instance that can be used with {@link PixelsService#getPixelBuffer(Pixels, boolean)}.
-     * Includes extra {@code JOIN}s for {@link #buildOmeroMetadata(long)}.
-     * @param imageId the ID of an image
-     * @return that image's pixels instance, or {@code null} if one could not be found
-     */
-    private Pixels getPixels(long imageId) {
-        Session session = null;
-        try {
-            session = sessionFactory.openSession();
-            session.setDefaultReadOnly(true);
-            final Query query = session.createQuery(
-                    "SELECT p FROM Pixels AS p " +
-                    "JOIN FETCH p.pixelsType " +
-                    "LEFT OUTER JOIN FETCH p.channels AS c " +
-                    "LEFT OUTER JOIN FETCH p.image AS i " +
-                    "LEFT OUTER JOIN FETCH p.settings AS r " +
-                    "LEFT OUTER JOIN FETCH c.logicalChannel " +
-                    "LEFT OUTER JOIN FETCH c.statsInfo " +
-                    "LEFT OUTER JOIN FETCH r.model " +
-                    "LEFT OUTER JOIN FETCH r.waveRendering AS cb " +
-                    "LEFT OUTER JOIN FETCH cb.family " +
-                    "LEFT OUTER JOIN FETCH cb.spatialDomainEnhancement " +
-                    "WHERE i.id = ?");
-            query.setParameter(0, imageId);
-            return (Pixels) query.uniqueResult();
-        } finally {
-            if (session != null) {
-                session.close();
-            }
-        }
-    }
-
-    /**
      * Set the given JSON data as the given HTTP response.
      * @param response a HTTP response
      * @param data some JSON data
      */
     private static void respondWithJson(HttpServerResponse response, JsonObject data) {
         final String responseText = data.toString();
+        final int responseSize = responseText.length();
+        LOGGER.debug("constructed JSON response of size {}", responseSize);
         response.putHeader("Content-Type", "application/json; charset=utf-8");
-        response.putHeader("Content-Length", Integer.toString(responseText.length()));
+        response.putHeader("Content-Length", Integer.toString(responseSize));
         response.end(responseText);
     }
 
@@ -393,7 +250,8 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param imageId the ID of the image being queried
      */
     private void returnGroup(HttpServerResponse response, long imageId) {
-        final Pixels pixels = getPixels(imageId);
+        LOGGER.debug("providing .zgroup for Image:{}", imageId);
+        final Pixels pixels = omeroDao.getPixels(imageId);
         if (pixels == null) {
             fail(response, 404, "no image for that id");
             return;
@@ -490,7 +348,8 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param imageId the ID of the image being queried
      */
     private void returnAttrs(HttpServerResponse response, long imageId) {
-        final Pixels pixels = getPixels(imageId);
+        LOGGER.debug("providing .zattrs for Image:{}", imageId);
+        final Pixels pixels = omeroDao.getPixels(imageId);
         if (pixels == null) {
             fail(response, 404, "no image for that id and resolution");
             return;
@@ -566,6 +425,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param resolution the resolution to query
      */
     private void returnArray(HttpServerResponse response, long imageId, int resolution) {
+        LOGGER.debug("providing .zarray for resolution {} of Image:{}", resolution, imageId);
         /* gather data from pixels service */
         final DataShape shape;
         final boolean isLittleEndian, isSigned, isFloat;
@@ -618,6 +478,7 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
      * @param chunkId the chunk to query, as <em>T</em>, <em>C</em>, <em>Z</em>, <em>Y</em>, <em>X</em>
      */
     private void returnChunk(HttpServerResponse response, long imageId, int resolution, List<Integer> chunkId) {
+        LOGGER.debug("providing chunk {} of resolution {} of Image:{}", chunkId, resolution, imageId);
         if (chunkId.size() != 5) {
             fail(response, 404, "no chunk with that index");
             return;
@@ -686,8 +547,10 @@ public class RequestHandlerForImage implements Handler<RoutingContext> {
         }
         /* package data for client */
         final Buffer chunkZipped = compress(chunk);
+        final int responseSize = chunkZipped.length();
+        LOGGER.debug("constructed binary response of size {}", responseSize);
         response.putHeader("Content-Type", "application/octet-stream");
-        response.putHeader("Content-Length", Integer.toString(chunkZipped.length()));
+        response.putHeader("Content-Length", Integer.toString(responseSize));
         response.end(chunkZipped);
     }
 
