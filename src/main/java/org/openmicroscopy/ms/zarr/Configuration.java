@@ -24,10 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.SortedSet;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,9 @@ public class Configuration {
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     public final static String PLACEHOLDER_IMAGE_ID = "{image}";
+
+    private final static SortedSet<Character> VALID_DIMENSIONS =
+            ImmutableSortedSet.copyOf(RequestHandlerForImage.DataShape.ADJUSTERS.keySet());
 
     /* Configuration keys for the map provided to the constructor. */
     public final static String CONF_BUFFER_CACHE_SIZE = "buffer-cache.size";
@@ -127,18 +131,18 @@ public class Configuration {
         }
 
         if (chunkSizeAdjust != null) {
-            final Set<Character> validDimensions = new HashSet<>(RequestHandlerForImage.DataShape.ADJUSTERS.keySet());
+            final Set<Character> validDimensionsRemaining = new HashSet<>(VALID_DIMENSIONS);
             final ImmutableList.Builder<Character> dimensions = ImmutableList.builder();
             for (int index = 0; index < chunkSizeAdjust.length();) {
                 final int codePoint = Character.toUpperCase(chunkSizeAdjust.codePointAt(index));
                 final int charCount = Character.charCount(codePoint);
                 if (charCount == 1) {
                     final char dimension = Character.toChars(codePoint)[0];
-                    if (validDimensions.remove(dimension)) {
+                    if (validDimensionsRemaining.remove(dimension)) {
                         dimensions.add(dimension);
                     } else if (Character.isAlphabetic(codePoint)) {
                         final StringBuilder message = new StringBuilder("chunk size adjustment may contain (without repeats): ");
-                        for (final char validDimension : new TreeSet<>(RequestHandlerForImage.DataShape.ADJUSTERS.keySet())) {
+                        for (final char validDimension : VALID_DIMENSIONS) {
                             message.append(validDimension);
                         }
                         LOGGER.error(message.toString());
