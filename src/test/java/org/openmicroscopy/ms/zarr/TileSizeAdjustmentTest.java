@@ -24,7 +24,11 @@ import org.openmicroscopy.ms.zarr.RequestHandlerForImage.DataShape;
 import ome.io.nio.PixelBuffer;
 
 import java.awt.Dimension;
+import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
+
+import com.google.common.collect.ImmutableList;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -38,6 +42,9 @@ import org.mockito.Mockito;
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class TileSizeAdjustmentTest {
+
+    private static final List<Function<DataShape, Boolean>> ADJUSTERS = ImmutableList.of(
+            DataShape.ADJUSTERS.get('X'), DataShape.ADJUSTERS.get('Y'), DataShape.ADJUSTERS.get('Z'));
 
     /**
      * Create a {@link DataShape} for the given image plane dimensionality.
@@ -72,7 +79,7 @@ public class TileSizeAdjustmentTest {
         final int beforeHeight = shape.yTile;
         final int beforePlanes = shape.zTile;
         final int beforeChunkSize = beforeWidth * beforeHeight * beforePlanes * shape.byteWidth;
-        shape.adjustTileSize(targetChunkSize);
+        shape.adjustTileSize(ADJUSTERS, targetChunkSize);
         final int afterWidth = shape.xTile;
         final int afterHeight = shape.yTile;
         final int afterPlanes = shape.zTile;

@@ -40,11 +40,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.Deflater;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -71,6 +73,12 @@ public class RequestHandlerForImage implements HttpHandler {
      * @author m.t.b.carroll@dundee.ac.uk
      */
     static class DataShape {
+
+        static final Map<Character, Function<DataShape, Boolean>> ADJUSTERS = ImmutableMap.of(
+                'X', DataShape::increaseX,
+                'Y', DataShape::increaseY,
+                'Z', DataShape::increaseZ);
+
         final int xSize, ySize, cSize, zSize, tSize;
         final int byteWidth;
 
@@ -100,32 +108,65 @@ public class RequestHandlerForImage implements HttpHandler {
         }
 
         /**
-         * Attempt to increase the <em>X</em>, <em>Y</em>, <em>Z</em> tile size so the tile occupies at least the given number of
-         * bytes.
+         * @return if this method was able to increase the <em>X</em> tile size
+         */
+        private boolean increaseX() {
+            if (xTile < xSize) {
+                if (xTile * 3 >= xSize) {
+                    xTile = xSize;
+                } else {
+                    xTile <<= 1;
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * @return if this method was able to increase the <em>Y</em> tile size
+         */
+        private boolean increaseY() {
+            if (yTile < ySize) {
+                if (yTile * 3 >= ySize) {
+                    yTile = ySize;
+                } else {
+                    yTile <<= 1;
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * @return if this method was able to increase the <em>Z</em> tile size
+         */
+        private boolean increaseZ() {
+            if (zTile < zSize) {
+                zTile <<= 1;
+                /* Spread planes evenly across chunks. */
+                final int zCount = (zSize + zTile - 1) / zTile;
+                zTile = (zSize + zCount - 1) / zCount;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * Attempt to increase the tile size so the tile occupies at least the given number of bytes.
+         * @param adjusters the methods to use in increasing tile size, in descending order of preference
          * @param target the minimum target size, in bytes
          * @return this, for method chaining
          */
-        DataShape adjustTileSize(int target) {
+        DataShape adjustTileSize(Iterable<Function<DataShape, Boolean>> adjusters, int target) {
             final int pixelTarget = target / byteWidth;
-            while ((long) xTile * yTile * zTile < pixelTarget) {
-                final boolean isIncreaseX = xTile < xSize;
-                final boolean isIncreaseY = yTile < ySize;
-                final boolean isIncreaseZ = zTile < zSize;
-                if (isIncreaseX && xTile * 3 >= xSize) {
-                    xTile = xSize;
-                } else if (isIncreaseY && yTile * 3 >= ySize) {
-                    yTile = ySize;
-                } else if (isIncreaseX) {
-                    xTile <<= 1;
-                } else if (isIncreaseY) {
-                    yTile <<= 1;
-                } else if (isIncreaseZ) {
-                    zTile <<= 1;
-                    /* Spread planes evenly across chunks. */
-                    final int zCount = (zSize + zTile - 1) / zTile;
-                    zTile = (zSize + zCount - 1) / zCount;
-                } else {
-                    break;
+            for (final Function<DataShape, Boolean> adjuster : adjusters) {
+                while ((long) xTile * yTile * zTile < pixelTarget) {
+                    if (!adjuster.apply(this)) {
+                        break;
+                    }
                 }
             }
             return this;
@@ -136,7 +177,8 @@ public class RequestHandlerForImage implements HttpHandler {
     private final PixelBufferCache cache;
     private final OmeroDao omeroDao;
 
-    private final int chunkSize;
+    private List<Function<DataShape, Boolean>> chunkSizeAdjust;
+    private final int chunkSizeMin;
     private final int deflateLevel;
 
     private final Pattern patternForGroup;
@@ -157,7 +199,13 @@ public class RequestHandlerForImage implements HttpHandler {
         this.cache = pixelBufferCache;
         this.omeroDao = omeroDao;
 
-        this.chunkSize = configuration.getMinimumChunkSize();
+        final ImmutableList.Builder<Function<DataShape, Boolean>> chunkSizeAdjust = ImmutableList.builder();
+        for (final char dimension : configuration.getAdjustableChunkDimensions()) {
+            chunkSizeAdjust.add(DataShape.ADJUSTERS.get(dimension));
+        }
+        this.chunkSizeAdjust = chunkSizeAdjust.build();
+
+        this.chunkSizeMin = configuration.getMinimumChunkSize();
         this.deflateLevel = configuration.getDeflateLevel();
 
         final String path = configuration.getPathRegex();
@@ -444,7 +492,7 @@ public class RequestHandlerForImage implements HttpHandler {
                 fail(response, 404, "no image for that id and resolution");
                 return;
             }
-            shape = new DataShape(buffer).adjustTileSize(chunkSize);
+            shape = new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
             final int xd = Math.min(shape.xSize, shape.xTile);
             final int yd = Math.min(shape.ySize, shape.yTile);
             final PixelData tile = buffer.getTile(0, 0, 0, 0, 0, xd, yd);
@@ -500,7 +548,7 @@ public class RequestHandlerForImage implements HttpHandler {
                 fail(response, 404, "no image for that id");
                 return;
             }
-            final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSize);
+            final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
             final int x = shape.xTile * chunkId.get(4);
             final int y = shape.yTile * chunkId.get(3);
             final int z = shape.zTile * chunkId.get(2);
