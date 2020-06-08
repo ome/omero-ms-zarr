@@ -43,8 +43,9 @@ import org.mockito.Mockito;
  */
 public class TileSizeAdjustmentTest {
 
-    private static final List<Function<DataShape, Boolean>> ADJUSTERS = ImmutableList.of(
-            DataShape.ADJUSTERS.get('X'), DataShape.ADJUSTERS.get('Y'), DataShape.ADJUSTERS.get('Z'));
+    private static final Function<DataShape, Boolean> ADJUSTER_X = DataShape.ADJUSTERS.get('X');
+    private static final Function<DataShape, Boolean> ADJUSTER_Y = DataShape.ADJUSTERS.get('Y');
+    private static final Function<DataShape, Boolean> ADJUSTER_Z = DataShape.ADJUSTERS.get('Z');
 
     /**
      * Create a {@link DataShape} for the given image plane dimensionality.
@@ -70,16 +71,17 @@ public class TileSizeAdjustmentTest {
      * Check that tile size adjustments are necessary and reasonable.
      * @param shape a data shape
      * @param targetChunkSize the chunk size to target
+     * @param adjusters the tile size adjusters that may be used
      */
     @ParameterizedTest
     @MethodSource("provideDataShapes")
-    public void testAdjustTileSize(DataShape shape, int targetChunkSize) {
+    public void testAdjustTileSize(DataShape shape, int targetChunkSize, List<Function<DataShape, Boolean>> adjusters) {
         /* Determine the sizes, both before and after adjustment for comparison. */
         final int beforeWidth = shape.xTile;
         final int beforeHeight = shape.yTile;
         final int beforePlanes = shape.zTile;
         final int beforeChunkSize = beforeWidth * beforeHeight * beforePlanes * shape.byteWidth;
-        shape.adjustTileSize(ADJUSTERS, targetChunkSize);
+        shape.adjustTileSize(adjusters, targetChunkSize);
         final int afterWidth = shape.xTile;
         final int afterHeight = shape.yTile;
         final int afterPlanes = shape.zTile;
@@ -101,30 +103,41 @@ public class TileSizeAdjustmentTest {
         if (afterChunkSize < targetChunkSize) {
             if (beforeWidth > shape.xSize) {
                 Assertions.assertEquals(beforeWidth, afterWidth);
-            } else {
+            } else if (adjusters.contains(ADJUSTER_X)) {
                 Assertions.assertEquals(shape.xSize, afterWidth);
+            } else {
+                Assertions.assertEquals(beforeWidth, afterWidth);
             }
             if (beforeHeight > shape.ySize) {
                 Assertions.assertEquals(beforeHeight, afterHeight);
-            } else {
+            } else if (adjusters.contains(ADJUSTER_Y)) {
                 Assertions.assertEquals(shape.ySize, afterHeight);
+            } else {
+                Assertions.assertEquals(beforeHeight, afterHeight);
             }
-            Assertions.assertEquals(shape.zSize, afterPlanes);
+            if (adjusters.contains(ADJUSTER_Z)) {
+                Assertions.assertEquals(shape.zSize, afterPlanes);
+            } else {
+                Assertions.assertEquals(beforePlanes, afterPlanes);
+            }
         }
         /* Tile size changes must be increases and either to a multiple of the previous or to the image size. */
         if (beforeWidth != afterWidth) {
+            Assertions.assertTrue(adjusters.contains(ADJUSTER_X));
             Assertions.assertTrue(beforeWidth < afterWidth);
             if (afterWidth != shape.xSize) {
                 Assertions.assertEquals(0, afterWidth % beforeWidth);
             }
         }
         if (beforeHeight != afterHeight) {
+            Assertions.assertTrue(adjusters.contains(ADJUSTER_Y));
             Assertions.assertTrue(beforeHeight < afterHeight);
             if (afterHeight != shape.ySize) {
                 Assertions.assertEquals(0, afterHeight % beforeHeight);
             }
         }
         if (beforePlanes > afterPlanes) {
+            Assertions.assertTrue(adjusters.contains(ADJUSTER_Z));
             /* Plane count reduction must not increase chunk count. */
             final int beforeCount = (shape.zSize + beforePlanes - 1) / beforePlanes;
             final int afterCount = (shape.zSize + afterPlanes - 1) / afterPlanes;
@@ -141,6 +154,20 @@ public class TileSizeAdjustmentTest {
      */
     private static Stream<Arguments> provideDataShapes() {
         final Stream.Builder<Arguments> arguments = Stream.builder();
+        final boolean[] booleans = new boolean[] {false, true};
+        for (final boolean isAdjustX : booleans) {
+            for (final boolean isAdjustY : booleans) {
+                for (final boolean isAdjustZ : booleans) {
+                    final ImmutableList.Builder<Function<DataShape, Boolean>> adjusters = ImmutableList.builder();
+                    if (isAdjustX) {
+                        adjusters.add(ADJUSTER_X);
+                    }
+                    if (isAdjustY) {
+                        adjusters.add(ADJUSTER_Y);
+                    }
+                    if (isAdjustZ) {
+                        adjusters.add(ADJUSTER_Z);
+                    }
         for (int bytes : new int[] {1, 2, 4}) {
             for (final int chunkSide : new int[] {1000, 1024}) {
                 for (int xDeciFactor : new int[] {1, 3, 7, 10, 15, 25, 45}) {
@@ -154,9 +181,12 @@ public class TileSizeAdjustmentTest {
                                 final DataShape shape = getDataShape(x, y, bytes);
                                 shape.xTile = w;
                                 shape.yTile = h;
-                                arguments.add(Arguments.of(shape, chunkSide * chunkSide));
+                                arguments.add(Arguments.of(shape, chunkSide * chunkSide, adjusters.build()));
                             }
                         }
+                    }
+                }
+            }
                     }
                 }
             }
