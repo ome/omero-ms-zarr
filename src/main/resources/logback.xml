@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+
+  <!-- Set this level to DEBUG if you are having issues with this microservice -->
+  <logger name="org.openmicroscopy.ms.zarr" level="INFO"/>
+
+
+  <!-- The following loggers are copied from the default OMERO.server configuration -->
+
+  <!-- INTERNAL /////////////////////////////////////////////////////////////// -->
+  <logger name="ome" level="INFO"/>
+  <logger name="ome.formats" level="INFO"/>
+  <logger name="omero" level="INFO"/>
+  <logger name="omeis" level="INFO"/>
+  <logger name="OMERO" level="INFO"/>
+  <!-- Inherit from Spring/etc and so are a bit verbose -->
+  <logger name="ome.system.OmeroContext" level="WARN"/>
+  <logger name="ome.system.PreferenceContext" level="WARN"/>
+  <logger name="ome.security.basic.CurrentDetails" level="INFO"/>
+  <logger name="ome.services.blitz.impl.ServiceFactoryI" level="INFO"/>
+  <logger name="ome.services.blitz.impl.OmeroMetadata" level="INFO"/>
+  <logger name="ome.services.blitz.util.ShutdownSafeEhcacheManagerFactoryBean" level="WARN"/>
+  <!-- Often useful to change to DEBUG -->
+  <logger name="omero.cmd" level="INFO"/>
+  <logger name="omero.cmd.graphs" level="INFO"/>
+  <logger name="ome.services.graphs" level="INFO"/>
+  <logger name="ome.services.delete" level="INFO"/>
+  <!-- Adapters are also too so is a bit verbose -->
+  <logger name="ome.adapters" level="ERROR"/>
+
+  <!-- THIRD PARTY //////////////////////////////////////////////////////////// -->
+  <logger name="org.apache" level="WARN"/>
+  <logger name="org.jgroups" level="WARN"/>
+  <logger name="org.quartz" level="WARN"/>
+  <logger name="org.hibernate" level="WARN"/>
+  <logger name="org.springframework" level="WARN"/>
+  <!-- Suppressing "Warning missing properties files" -->
+  <logger name="org.springframework.beans" level="ERROR"/>
+  <!-- Whether or not to print jamon timing INFO. ERROR or TRACE -->
+  <logger name="org.springframework.aop.interceptor.JamonPerformanceMonitorInterceptor" level="TRACE"/>
+  <!-- Quieting blitz startup -->
+  <logger name="net.sf.ehcache" level="ERROR"/>
+  <logger name="loci" level="INFO"/><!-- Bio-Formats -->
+  <logger name="loci.formats.Memoizer" level="DEBUG"/>
+  <logger name="ucar" level="WARN"/><!-- NetCDF -->
+
+  <!-- BUILD ////////////////////////////////////////////////////////////////// -->
+  <logger name="org.hibernate.tool.hbm2x.POJOExporter" level="ERROR"/>
+  <logger name="velocity" level="ERROR"/>
+  <logger name="ome.dsl.utests" level="WARN"/>
+  <logger name="ome.util.utests.PojoOptionsTest" level="WARN"/>
+
+  <!-- IMAGEJ /////////////////////////////////////////////////////////////// -->
+  <!-- These categories are omitted by ImageJ components which pick up our
+       slf4j/logback configuration during scripting -->
+  <logger name="org.bushe" level="INFO"/>
+
+  <!-- DATABASE /////////////////////////////////////////////////////////////// -->
+  <logger name="bitronix" level="WARN"/>
+  <!-- Limit memory WARNing -->
+  <logger name="org.hibernate.hql.ast.QueryTranslatorImpl" level="ERROR"/>
+  <!-- Limit fail-safe cleanup -->
+  <logger name="org.hibernate.engine.loading.LoadContexts" level="ERROR"/>
+  <!-- This is bogus, and will be caught by our exception handlers anyway -->
+  <logger name="org.hibernate.util.JDBCExceptionReporter" level="OFF" additivity="false"/>
+  <!-- Printed on startup -->
+  <logger name="org.hibernate.search.engine.DocumentBuilderContainedEntity" level="ERROR"/>
+  <!-- Other overly verbose messages -->
+  <logger name="org.hibernate.SQL" level="ERROR"/>
+  <logger name="org.hibernate.cfg" level="ERROR"/>
+  <logger name="org.hibernate.engine" level="ERROR"/>
+  <logger name="org.hibernate.hql" level="WARN"/> <!-- for first/max in memory -->
+  <logger name="org.hibernate.hql.PARSER" level="OFF" additivity="false"/>
+  <logger name="org.hibernate.loader" level="ERROR"/>
+  <logger name="org.hibernate.persister" level="ERROR"/>
+  <logger name="org.hibernate.pretty" level="ERROR"/>
+  <logger name="org.hibernate.type" level="ERROR"/>
+  <logger name="org.hibernate.validator" level="ERROR"/>
+  <!-- Thrown from BinaryAccessPolicy -->
+  <logger name="org.hibernate.AssertionFailure" level="OFF" additivity="false"/>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+  </root>
+
+</configuration>

@@ -13,6 +13,11 @@ repositories {
 }
 
 dependencies {
+
+    implementation 'ch.qos.logback:logback-classic:1.1.7'
+    implementation 'org.slf4j:jul-to-slf4j:1.7.30'
+    implementation 'org.slf4j:jcl-over-slf4j:1.7.30'
+
     implementation 'org.openmicroscopy:omero-server:5.5.6'
     implementation 'com.google.guava:guava:27.1-jre'
     implementation 'io.vertx:vertx-core:3.9.1'
@@ -38,6 +43,10 @@ java {
 }
 
 mainClassName = "org.openmicroscopy.ms.zarr.ZarrDataService"
+
+applicationDefaultJvmArgs = [
+    "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
+]
 
 shadowJar {
     zip64 true
