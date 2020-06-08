@@ -7,7 +7,12 @@
     </encoder>
   </appender>
 
-  <!-- All below are ROOT loggers -->
+
+  <!-- Set this level to DEBUG if you are having issues with this microservice -->
+  <logger name="org.openmicroscopy.ms.zarr" level="INFO"/>
+
+
+  <!-- The following loggers are copied from the default OMERO.server configuration -->
 
   <!-- INTERNAL /////////////////////////////////////////////////////////////// -->
   <logger name="ome" level="INFO"/>
