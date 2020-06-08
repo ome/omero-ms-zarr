@@ -168,25 +168,25 @@ public class TileSizeAdjustmentTest {
                     if (isAdjustZ) {
                         adjusters.add(ADJUSTER_Z);
                     }
-        for (int bytes : new int[] {1, 2, 4}) {
-            for (final int chunkSide : new int[] {1000, 1024}) {
-                for (int xDeciFactor : new int[] {1, 3, 7, 10, 15, 25, 45}) {
-                    final int x = chunkSide * xDeciFactor / 10;
-                    for (int yDeciFactor : new int[] {1, 3, 7, 10, 15, 25, 45}) {
-                        final int y = chunkSide * yDeciFactor / 10;
-                        for (int wDeciFactor : new int[] {1, 3, 7, 10, 15}) {
-                            final int w = chunkSide * wDeciFactor / 10;
-                            for (int hDeciFactor : new int[] {1, 3, 7, 10, 15}) {
-                                final int h = chunkSide * hDeciFactor / 10;
-                                final DataShape shape = getDataShape(x, y, bytes);
-                                shape.xTile = w;
-                                shape.yTile = h;
-                                arguments.add(Arguments.of(shape, chunkSide * chunkSide, adjusters.build()));
+                    for (int bytes : new int[] {1, 2, 4}) {
+                        for (final int chunkSide : new int[] {1000, 1024}) {
+                            for (int xDeciFactor : new int[] {1, 3, 7, 10, 15, 25, 45}) {
+                                final int x = chunkSide * xDeciFactor / 10;
+                                for (int yDeciFactor : new int[] {1, 3, 7, 10, 15, 25, 45}) {
+                                    final int y = chunkSide * yDeciFactor / 10;
+                                    for (int wDeciFactor : new int[] {1, 3, 7, 10, 15}) {
+                                        final int w = chunkSide * wDeciFactor / 10;
+                                        for (int hDeciFactor : new int[] {1, 3, 7, 10, 15}) {
+                                            final int h = chunkSide * hDeciFactor / 10;
+                                            final DataShape shape = getDataShape(x, y, bytes);
+                                            shape.xTile = w;
+                                            shape.yTile = h;
+                                            arguments.add(Arguments.of(shape, chunkSide * chunkSide, adjusters.build()));
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-            }
                     }
                 }
             }
