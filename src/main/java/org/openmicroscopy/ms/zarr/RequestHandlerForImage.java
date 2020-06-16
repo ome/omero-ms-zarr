@@ -171,6 +171,34 @@ public class RequestHandlerForImage implements HttpHandler {
             }
             return this;
         }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("XYZCT: full=");
+            sb.append(xSize);
+            sb.append('×');
+            sb.append(ySize);
+            sb.append('×');
+            sb.append(zSize);
+            sb.append('×');
+            sb.append(cSize);
+            sb.append('×');
+            sb.append(tSize);
+            sb.append(" tile=");
+            sb.append(xTile);
+            sb.append('×');
+            sb.append(yTile);
+            sb.append('×');
+            sb.append(zTile);
+            sb.append('×');
+            sb.append(1);
+            sb.append('×');
+            sb.append(1);
+            sb.append(" bytes=");
+            sb.append(byteWidth);
+            return sb.toString();
+        }
     }
 
     private final PixelsService pixelsService;
