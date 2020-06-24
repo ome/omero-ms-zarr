@@ -35,6 +35,9 @@ In addition to your usual OMERO.server configuration, the microservice's
 `omero.ms.zarr.buffer-cache.size`
 : pixel buffer cache size, default 16
 
+`omero.ms.zarr.chunk.size.adjust`
+: ordered list of dimensions to adjust to increase chunk size, default *XYZ*; *C* and *T* are not offered
+
 `omero.ms.zarr.chunk.size.min`
 : minimum chunk size (not guaranteed), default 1048576; applies before compression
 

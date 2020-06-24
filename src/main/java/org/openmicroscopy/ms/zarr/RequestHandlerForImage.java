@@ -40,11 +40,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.Deflater;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -71,10 +73,16 @@ public class RequestHandlerForImage implements HttpHandler {
      * @author m.t.b.carroll@dundee.ac.uk
      */
     static class DataShape {
+
+        static final Map<Character, Function<DataShape, Boolean>> ADJUSTERS = ImmutableMap.of(
+                'X', DataShape::increaseX,
+                'Y', DataShape::increaseY,
+                'Z', DataShape::increaseZ);
+
         final int xSize, ySize, cSize, zSize, tSize;
         final int byteWidth;
 
-        int xTile, yTile;
+        int xTile, yTile, zTile;
 
         /**
          * @param buffer the pixel buffer from which to extract the dimensionality
@@ -94,33 +102,102 @@ public class RequestHandlerForImage implements HttpHandler {
                 xTile = tileSize.width;
                 yTile = tileSize.height;
             }
+            zTile = 1;
 
             byteWidth = buffer.getByteWidth();
         }
 
         /**
-         * Attempt to increase the <em>X</em>, <em>Y</em> tile size so the tile occupies at least the given number of bytes.
+         * @return if this method was able to increase the <em>X</em> tile size
+         */
+        private boolean increaseX() {
+            if (xTile < xSize) {
+                if (xTile * 3 >= xSize) {
+                    xTile = xSize;
+                } else {
+                    xTile <<= 1;
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * @return if this method was able to increase the <em>Y</em> tile size
+         */
+        private boolean increaseY() {
+            if (yTile < ySize) {
+                if (yTile * 3 >= ySize) {
+                    yTile = ySize;
+                } else {
+                    yTile <<= 1;
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * @return if this method was able to increase the <em>Z</em> tile size
+         */
+        private boolean increaseZ() {
+            if (zTile < zSize) {
+                zTile <<= 1;
+                /* Spread planes evenly across chunks. */
+                final int zCount = (zSize + zTile - 1) / zTile;
+                zTile = (zSize + zCount - 1) / zCount;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * Attempt to increase the tile size so the tile occupies at least the given number of bytes.
+         * @param adjusters the methods to use in increasing tile size, in descending order of preference
          * @param target the minimum target size, in bytes
          * @return this, for method chaining
          */
-        DataShape adjustTileSize(int target) {
+        DataShape adjustTileSize(Iterable<Function<DataShape, Boolean>> adjusters, int target) {
             final int pixelTarget = target / byteWidth;
-            while ((long) xTile * yTile < pixelTarget) {
-                final boolean isIncreaseX = xTile < xSize;
-                final boolean isIncreaseY = yTile < ySize;
-                if (isIncreaseX && xTile * 3 >= xSize) {
-                    xTile = xSize;
-                } else if (isIncreaseY && yTile * 3 >= ySize) {
-                    yTile = ySize;
-                } else if (isIncreaseX) {
-                    xTile <<= 1;
-                } else if (isIncreaseY) {
-                    yTile <<= 1;
-                } else {
-                    break;
+            for (final Function<DataShape, Boolean> adjuster : adjusters) {
+                while ((long) xTile * yTile * zTile < pixelTarget) {
+                    if (!adjuster.apply(this)) {
+                        break;
+                    }
                 }
             }
             return this;
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("XYZCT: full=");
+            sb.append(xSize);
+            sb.append('×');
+            sb.append(ySize);
+            sb.append('×');
+            sb.append(zSize);
+            sb.append('×');
+            sb.append(cSize);
+            sb.append('×');
+            sb.append(tSize);
+            sb.append(" tile=");
+            sb.append(xTile);
+            sb.append('×');
+            sb.append(yTile);
+            sb.append('×');
+            sb.append(zTile);
+            sb.append('×');
+            sb.append(1);
+            sb.append('×');
+            sb.append(1);
+            sb.append(" bytes=");
+            sb.append(byteWidth);
+            return sb.toString();
         }
     }
 
@@ -128,7 +205,8 @@ public class RequestHandlerForImage implements HttpHandler {
     private final PixelBufferCache cache;
     private final OmeroDao omeroDao;
 
-    private final int chunkSize;
+    private List<Function<DataShape, Boolean>> chunkSizeAdjust;
+    private final int chunkSizeMin;
     private final int deflateLevel;
 
     private final Pattern patternForGroup;
@@ -149,7 +227,13 @@ public class RequestHandlerForImage implements HttpHandler {
         this.cache = pixelBufferCache;
         this.omeroDao = omeroDao;
 
-        this.chunkSize = configuration.getMinimumChunkSize();
+        final ImmutableList.Builder<Function<DataShape, Boolean>> chunkSizeAdjust = ImmutableList.builder();
+        for (final char dimension : configuration.getAdjustableChunkDimensions()) {
+            chunkSizeAdjust.add(DataShape.ADJUSTERS.get(dimension));
+        }
+        this.chunkSizeAdjust = chunkSizeAdjust.build();
+
+        this.chunkSizeMin = configuration.getMinimumChunkSize();
         this.deflateLevel = configuration.getDeflateLevel();
 
         final String path = configuration.getPathRegex();
@@ -436,7 +520,7 @@ public class RequestHandlerForImage implements HttpHandler {
                 fail(response, 404, "no image for that id and resolution");
                 return;
             }
-            shape = new DataShape(buffer).adjustTileSize(chunkSize);
+            shape = new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
             final int xd = Math.min(shape.xSize, shape.xTile);
             final int yd = Math.min(shape.ySize, shape.yTile);
             final PixelData tile = buffer.getTile(0, 0, 0, 0, 0, xd, yd);
@@ -460,7 +544,7 @@ public class RequestHandlerForImage implements HttpHandler {
         result.put("zarr_format", 2);
         result.put("order", "C");
         result.put("shape", ImmutableList.of(shape.tSize, shape.cSize, shape.zSize, shape.ySize, shape.xSize));
-        result.put("chunks", ImmutableList.of(1, 1, 1, shape.yTile, shape.xTile));
+        result.put("chunks", ImmutableList.of(1, 1, shape.zTile, shape.yTile, shape.xTile));
         result.put("fill_value", 0);
         final char byteOrder = shape.byteWidth == 1 ? '|' : isLittleEndian ? '<' : '>';
         final char byteType = isFloat ? 'f' : isSigned ? 'i' : 'u';
@@ -492,51 +576,55 @@ public class RequestHandlerForImage implements HttpHandler {
                 fail(response, 404, "no image for that id");
                 return;
             }
-            final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSize);
+            final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
             final int x = shape.xTile * chunkId.get(4);
             final int y = shape.yTile * chunkId.get(3);
-            final int z = chunkId.get(2);
+            final int z = shape.zTile * chunkId.get(2);
             final int c = chunkId.get(1);
             final int t = chunkId.get(0);
             if (x >= shape.xSize || y >= shape.ySize || c >= shape.cSize || z >= shape.zSize || t >= shape.tSize) {
                 fail(response, 404, "no chunk with that index");
                 return;
             }
-            final PixelData tile;
-            if (x + shape.xTile > shape.xSize) {
-                /* a tile that crosses the right side of the image */
-                final int xd = shape.xSize - x;
-                final int yd;
-                if (y + shape.yTile > shape.ySize) {
-                    /* also crosses the bottom side */
-                    yd = shape.ySize - y;
+            chunk = new byte[shape.xTile * shape.yTile * shape.zTile * shape.byteWidth];
+            for (int plane = 0; plane < shape.zTile && z + plane < shape.zSize; plane++) {
+                final int planeOffset = plane * (chunk.length / shape.zTile);
+                final PixelData tile;
+                if (x + shape.xTile > shape.xSize) {
+                    /* a tile that crosses the right side of the image */
+                    final int xd = shape.xSize - x;
+                    final int yd;
+                    if (y + shape.yTile > shape.ySize) {
+                        /* also crosses the bottom side */
+                        yd = shape.ySize - y;
+                    } else {
+                        /* does not cross the bottom side */
+                        yd = shape.yTile;
+                    }
+                    tile = buffer.getTile(z + plane, c, t, x, y, xd, yd);
+                    final byte[] chunkSrc = tile.getData().array();
+                    /* must now assemble row-by-row into a plane in the chunk */
+                    for (int row = 0; row < yd; row++) {
+                        final int srcIndex = row * xd * shape.byteWidth;
+                        final int dstIndex = row * shape.xTile * shape.byteWidth + planeOffset;
+                        System.arraycopy(chunkSrc, srcIndex, chunk, dstIndex, xd * shape.byteWidth);
+                    }
                 } else {
-                    /* does not cross the bottom side */
-                    yd = shape.yTile;
+                    final int yd;
+                    if (y + shape.yTile > shape.ySize) {
+                        /* a tile that crosses the bottom of the image */
+                        yd = shape.ySize - y;
+                    } else {
+                        /* the tile fills a plane in the chunk */
+                        yd = shape.yTile;
+                    }
+                    tile = buffer.getTile(z + plane, c, t, x, y, shape.xTile, yd);
+                    final byte[] chunkSrc = tile.getData().array();
+                    /* simply copy into the plane */
+                    System.arraycopy(chunkSrc, 0, chunk, planeOffset, chunkSrc.length);
                 }
-                tile = buffer.getTile(z, c, t, x, y, xd, yd);
-                final byte[] chunkSrc = tile.getData().array();
-                chunk = new byte[shape.xTile * shape.yTile * shape.byteWidth];
-                /* must now assemble row-by-row into a full-sized chunk */
-                for (int row = 0; row < yd; row++) {
-                    final int srcIndex = row * xd * shape.byteWidth;
-                    final int dstIndex = row * shape.xTile * shape.byteWidth;
-                    System.arraycopy(chunkSrc, srcIndex, chunk, dstIndex, xd * shape.byteWidth);
-                }
-            } else if (y + shape.yTile > shape.ySize) {
-                /* a tile that crosses the bottom of the image */
-                final int yd = shape.ySize - y;
-                tile = buffer.getTile(z, c, t, x, y, shape.xTile, yd);
-                final byte[] chunkSrc = tile.getData().array();
-                chunk = new byte[shape.xTile * shape.yTile * shape.byteWidth];
-                /* simply copy into the first part of the chunk */
-                System.arraycopy(chunkSrc, 0, chunk, 0, chunkSrc.length);
-            } else {
-                /* the tile fills a chunk */
-                tile = buffer.getTile(z, c, t, x, y, shape.xTile, shape.yTile);
-                chunk = tile.getData().array();
+                tile.dispose();
             }
-            tile.dispose();
         } catch (Exception e) {
             fail(response, 500, "query failed");
             return;

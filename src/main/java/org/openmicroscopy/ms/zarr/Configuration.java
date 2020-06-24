@@ -19,10 +19,16 @@
 
 package org.openmicroscopy.ms.zarr;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.SortedSet;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +43,12 @@ public class Configuration {
 
     public final static String PLACEHOLDER_IMAGE_ID = "{image}";
 
+    private final static SortedSet<Character> VALID_DIMENSIONS =
+            ImmutableSortedSet.copyOf(RequestHandlerForImage.DataShape.ADJUSTERS.keySet());
+
     /* Configuration keys for the map provided to the constructor. */
     public final static String CONF_BUFFER_CACHE_SIZE = "buffer-cache.size";
+    public final static String CONF_CHUNK_SIZE_ADJUST = "chunk.size.adjust";
     public final static String CONF_CHUNK_SIZE_MIN = "chunk.size.min";
     public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
     public final static String CONF_NET_PATH_IMAGE = "net.path.image";
@@ -46,7 +56,8 @@ public class Configuration {
 
     /* Configuration initialized to default values. */
     private int cacheSize = 16;
-    private int chunkSize = 0x100000;
+    private List<Character> chunkSizeAdjust = ImmutableList.of('X', 'Y', 'Z');
+    private int chunkSizeMin = 0x100000;
     private int zlibLevel = 6;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
@@ -103,7 +114,8 @@ public class Configuration {
      */
     private void setConfiguration(Map<String, String> configuration) {
         final String cacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
-        final String chunkSize = configuration.get(CONF_CHUNK_SIZE_MIN);
+        final String chunkSizeAdjust = configuration.get(CONF_CHUNK_SIZE_ADJUST);
+        final String chunkSizeMin = configuration.get(CONF_CHUNK_SIZE_MIN);
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
         final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
         final String netPort = configuration.get(CONF_NET_PORT);
@@ -118,11 +130,35 @@ public class Configuration {
             }
         }
 
-        if (chunkSize != null) {
+        if (chunkSizeAdjust != null) {
+            final Set<Character> validDimensionsRemaining = new HashSet<>(VALID_DIMENSIONS);
+            final ImmutableList.Builder<Character> dimensions = ImmutableList.builder();
+            for (int index = 0; index < chunkSizeAdjust.length();) {
+                final int codePoint = Character.toUpperCase(chunkSizeAdjust.codePointAt(index));
+                final int charCount = Character.charCount(codePoint);
+                if (charCount == 1) {
+                    final char dimension = Character.toChars(codePoint)[0];
+                    if (validDimensionsRemaining.remove(dimension)) {
+                        dimensions.add(dimension);
+                    } else if (Character.isAlphabetic(codePoint)) {
+                        final StringBuilder message = new StringBuilder("chunk size adjustment may contain (without repeats): ");
+                        for (final char validDimension : VALID_DIMENSIONS) {
+                            message.append(validDimension);
+                        }
+                        LOGGER.error(message.toString());
+                        throw new IllegalArgumentException(message.toString());
+                    }
+                }
+                index += charCount;
+            }
+            this.chunkSizeAdjust = dimensions.build();
+        }
+
+        if (chunkSizeMin != null) {
             try {
-                this.chunkSize = Integer.parseInt(chunkSize);
+                this.chunkSizeMin = Integer.parseInt(chunkSizeMin);
             } catch (NumberFormatException nfe) {
-                final String message = "minimum chunk size must be an integer, not " + chunkSize;
+                final String message = "minimum chunk size must be an integer, not " + chunkSizeMin;
                 LOGGER.error(message);
                 throw new IllegalArgumentException(message);
             }
@@ -179,10 +215,17 @@ public class Configuration {
     }
 
     /**
+     * @return an ordered list of chunk dimensions to adjust
+     */
+    public List<Character> getAdjustableChunkDimensions() {
+        return chunkSizeAdjust;
+    }
+
+    /**
      * @return the configured minimum chunk size
      */
     public int getMinimumChunkSize() {
-        return chunkSize;
+        return chunkSizeMin;
     }
 
     /**
