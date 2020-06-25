@@ -51,6 +51,7 @@ public class Configuration {
     public final static String CONF_CHUNK_SIZE_ADJUST = "chunk.size.adjust";
     public final static String CONF_CHUNK_SIZE_MIN = "chunk.size.min";
     public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
+    public final static String CONF_FOLDER_LAYOUT = "folder.layout";
     public final static String CONF_NET_PATH_IMAGE = "net.path.image";
     public final static String CONF_NET_PORT = "net.port";
 
@@ -59,6 +60,7 @@ public class Configuration {
     private List<Character> chunkSizeAdjust = ImmutableList.of('X', 'Y', 'Z');
     private int chunkSizeMin = 0x100000;
     private int zlibLevel = 6;
+    private Boolean foldersNested = true;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
 
@@ -117,6 +119,7 @@ public class Configuration {
         final String chunkSizeAdjust = configuration.get(CONF_CHUNK_SIZE_ADJUST);
         final String chunkSizeMin = configuration.get(CONF_CHUNK_SIZE_MIN);
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
+        final String folderLayout = configuration.get(CONF_FOLDER_LAYOUT);
         final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
         final String netPort = configuration.get(CONF_NET_PORT);
 
@@ -169,6 +172,24 @@ public class Configuration {
                 this.zlibLevel = Integer.parseInt(zlibLevel);
             } catch (NumberFormatException nfe) {
                 final String message = "deflate compression level must be an integer, not " + zlibLevel;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
+        if (folderLayout != null) {
+            switch (folderLayout.toLowerCase()) {
+            case "nested":
+                this.foldersNested = true;
+                break;
+            case "flattened":
+                this.foldersNested = false;
+                break;
+            case "none":
+                this.foldersNested = null;
+                break;
+            default:
+                final String message = "folder layout may be nested, flattened or none";
                 LOGGER.error(message);
                 throw new IllegalArgumentException(message);
             }
@@ -233,6 +254,13 @@ public class Configuration {
      */
     public int getDeflateLevel() {
         return zlibLevel;
+    }
+
+    /**
+     * @return if the folder layout should be nested ({@code null} for no folders at all)
+     */
+    public Boolean getFoldersNested() {
+        return foldersNested;
     }
 
     /**
