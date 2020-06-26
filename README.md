@@ -44,6 +44,9 @@ In addition to your usual OMERO.server configuration, the microservice's
 `omero.ms.zarr.compress.zlib.level`
 : zlib compression level for chunks, default 6
 
+`omero.ms.zarr.folder.layout`
+: for directory listings, default `nested` chunks, can be `flattened`; `none` disables directory listings
+
 `omero.ms.zarr.net.path.image`
 : URI template path for getting image data, default `/image/{image}.zarr/` where `{image}` signifies the image ID and is mandatory
 

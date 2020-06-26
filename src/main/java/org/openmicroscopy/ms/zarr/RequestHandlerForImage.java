@@ -36,6 +36,7 @@ import java.awt.Dimension;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -45,6 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.Deflater;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -56,6 +58,9 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+
+import j2html.TagCreator;
+import j2html.tags.DomContent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -208,6 +213,11 @@ public class RequestHandlerForImage implements HttpHandler {
     private List<Function<DataShape, Boolean>> chunkSizeAdjust;
     private final int chunkSizeMin;
     private final int deflateLevel;
+    private final Boolean foldersNested;
+
+    private final Pattern patternForImageDir;
+    private final Pattern patternForGroupDir;
+    private final Pattern patternForChunkDir;
 
     private final Pattern patternForGroup;
     private final Pattern patternForAttrs;
@@ -235,8 +245,14 @@ public class RequestHandlerForImage implements HttpHandler {
 
         this.chunkSizeMin = configuration.getMinimumChunkSize();
         this.deflateLevel = configuration.getDeflateLevel();
+        this.foldersNested = configuration.getFoldersNested();
 
         final String path = configuration.getPathRegex();
+
+        this.patternForImageDir = Pattern.compile(path);
+        this.patternForGroupDir = Pattern.compile(path + "(\\d+)/");
+        this.patternForChunkDir = Pattern.compile(path + "(\\d+)/(\\d+([/.]\\d+)*)/");
+
         this.patternForGroup = Pattern.compile(path + "\\.zgroup");
         this.patternForAttrs = Pattern.compile(path + "\\.zattrs");
         this.patternForArray = Pattern.compile(path + "(\\d+)/\\.zarray");
@@ -246,6 +262,13 @@ public class RequestHandlerForImage implements HttpHandler {
     @Override
     public void handleFor(Router router) {
         LOGGER.info("handling GET requests for router");
+        if (foldersNested != null) {
+            router.getWithRegex(patternForImageDir.pattern()).handler(this);
+            router.getWithRegex(patternForGroupDir.pattern()).handler(this);
+            if (foldersNested) {
+                router.getWithRegex(patternForChunkDir.pattern()).handler(this);
+            }
+        }
         router.getWithRegex(patternForGroup.pattern()).handler(this);
         router.getWithRegex(patternForAttrs.pattern()).handler(this);
         router.getWithRegex(patternForArray.pattern()).handler(this);
@@ -266,6 +289,20 @@ public class RequestHandlerForImage implements HttpHandler {
     }
 
     /**
+     * Parse chunk index from the given path.
+     * @param path indices separated by {@code '/'} or {@code '.'}
+     * @return the parsed indices
+     * @throws NumberFormatException if any indices could not be parsed
+     */
+    private static List<Integer> getIndicesFromPath(String path) {
+        final ImmutableList.Builder<Integer> indices = ImmutableList.builder();
+        for (final String integerText : path.split("[/.]")) {
+            indices.add(Integer.parseInt(integerText));
+        }
+        return indices.build();
+    }
+
+    /**
      * Handle incoming requests that query OMERO images.
      * @param context the routing context
      */
@@ -278,6 +315,37 @@ public class RequestHandlerForImage implements HttpHandler {
             LOGGER.debug("handling GET request path: {}", requestPath);
             try {
                 Matcher matcher;
+                if (foldersNested != null) {
+                    matcher = patternForImageDir.matcher(requestPath);
+                    if (matcher.matches()) {
+                        final long imageId = Long.parseLong(matcher.group(1));
+                        returnImageDirectory(response, imageId);
+                    }
+                    matcher = patternForGroupDir.matcher(requestPath);
+                    if (matcher.matches()) {
+                        final long imageId = Long.parseLong(matcher.group(1));
+                        final int resolutionId = Integer.parseInt(matcher.group(2));
+                        if (foldersNested) {
+                            returnGroupDirectoryNested(response, imageId, resolutionId, 0);
+                        } else {
+                            returnGroupDirectoryFlattened(response, imageId, resolutionId);
+                        }
+                    }
+                    if (foldersNested) {
+                        matcher = patternForChunkDir.matcher(requestPath);
+                        if (matcher.matches()) {
+                            final long imageId = Long.parseLong(matcher.group(1));
+                            final int resolutionId = Integer.parseInt(matcher.group(2));
+                            final List<Integer> chunkDir = getIndicesFromPath(matcher.group(3));
+                            if (chunkDir.size() < 5) {
+                                returnGroupDirectoryNested(response, imageId, resolutionId, chunkDir.size());
+                            } else {
+                                fail(response, 404, "no chunk directory with that index");
+                                return;
+                            }
+                        }
+                    }
+                }
                 matcher = patternForGroup.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
@@ -297,12 +365,14 @@ public class RequestHandlerForImage implements HttpHandler {
                 matcher = patternForChunk.matcher(requestPath);
                 if (matcher.matches()) {
                     final long imageId = Long.parseLong(matcher.group(1));
-                    final int resolution = Integer.parseInt(matcher.group(2));
-                    final ImmutableList.Builder<Integer> chunkId = ImmutableList.builder();
-                    for (final String integerText : matcher.group(3).split("[/.]")) {
-                        chunkId.add(Integer.parseInt(integerText));
+                    final int resolutionId = Integer.parseInt(matcher.group(2));
+                    final List<Integer> chunkId = getIndicesFromPath(matcher.group(3));
+                    if (chunkId.size() == 5) {
+                        returnChunk(response, imageId, resolutionId, chunkId);
+                    } else {
+                        fail(response, 404, "no chunk with that index");
+                        return;
                     }
-                    returnChunk(response, imageId, resolution, chunkId.build());
                 }
             } catch (NumberFormatException nfe) {
                 fail(response, 400, "failed to parse integers");
@@ -312,6 +382,87 @@ public class RequestHandlerForImage implements HttpHandler {
             fail(response, 404, "unknown path for this method");
             return;
         }
+    }
+
+    /**
+     * Extract data from a pixel buffer from the server.
+     * @param <X> the type of data desired
+     * @param response a HTTP response, will be {@link HttpServerResponse#ended()} in the event of failure
+     * @param pixels the pixels instance identifying the desired buffer, if {@code null} will cause the response to be ended
+     * @param getter how to extract the data from the pixel buffer
+     * @return the extracted data
+     */
+    private <X> X getDataFromPixels(HttpServerResponse response, Pixels pixels, Function<PixelBuffer, X> getter) {
+        if (pixels == null) {
+            fail(response, 404, "no image for that id");
+            return null;
+        }
+        PixelBuffer buffer = null;
+        try {
+            buffer = pixelsService.getPixelBuffer(pixels, false);
+            return getter.apply(buffer);
+        } catch (Exception e) {
+            LOGGER.debug("pixel buffer failure", e);
+            fail(response, 500, "query failed");
+            return null;
+        } finally {
+            if (buffer != null) {
+                try {
+                    buffer.close();
+                } catch (IOException ioe) {
+                    /* probably already failing anyway */
+                }
+            }
+        }
+    }
+
+    /**
+     * Find the dimensionality of a given resolution.
+     * @param response a HTTP response, will be {@link HttpServerResponse#ended()} in the event of failure
+     * @param imageId the ID of the image being queried
+     * @param resolution the resolution to query
+     * @return the dimensionality of that resolution
+     */
+    private DataShape getDataShape(HttpServerResponse response, long imageId, int resolution) {
+        PixelBuffer buffer = null;
+        try {
+            buffer = cache.getPixelBuffer(imageId, resolution);
+            if (buffer == null) {
+                fail(response, 404, "no image for that id and resolution");
+                return null;
+            }
+            return new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
+        } catch (Exception e) {
+            LOGGER.debug("pixel buffer failure", e);
+            fail(response, 500, "query failed");
+            return null;
+        } finally {
+            if (buffer != null) {
+                cache.releasePixelBuffer(buffer);
+            }
+        }
+    }
+
+    /**
+     * Set the given directory contents as the given HTTP response.
+     * @param response a HTTP response
+     * @param entityName the name of the entity to which the directory corresponds
+     * @param contents the contents of the directory
+     */
+    private void respondWithDirectory(HttpServerResponse response, String entityName, Collection<String> contents) {
+        final DomContent listing = TagCreator.html(
+                TagCreator.head(TagCreator.title(entityName)),
+                TagCreator.body(
+                        TagCreator.h1("Directory listing for " + entityName),
+                        TagCreator.ul(TagCreator.each(contents,
+                                content -> TagCreator.li(TagCreator.a(content).withHref(content))))));
+        final String responseText = listing.render();
+        final int responseSize = responseText.length();
+        LOGGER.debug("constructed HTML response of size {}", responseSize);
+        response.putHeader("Content-Type", "text/html; charset=utf-8");
+        response.putHeader("Content-Length", Integer.toString(responseSize));
+        response.end(responseText);
+
     }
 
     /**
@@ -326,6 +477,115 @@ public class RequestHandlerForImage implements HttpHandler {
         response.putHeader("Content-Type", "application/json; charset=utf-8");
         response.putHeader("Content-Length", Integer.toString(responseSize));
         response.end(responseText);
+    }
+
+    /**
+     * Handle a request for the image directory.
+     * @param response the HTTP server response to populate
+     * @param imageId the ID of the image being queried
+     */
+    private void returnImageDirectory(HttpServerResponse response, long imageId) {
+        LOGGER.debug("providing directory listing for Image:{}", imageId);
+        /* gather data from pixels service */
+        final Pixels pixels = omeroDao.getPixels(imageId);
+        final int resolutions = getDataFromPixels(response, pixels, buffer ->  buffer.getResolutionLevels());
+        if (response.ended()) {
+            return;
+        }
+        /* package data for client */
+        final ImmutableList.Builder<String> contents = ImmutableList.builder();
+        contents.add(".zattrs");
+        contents.add(".zgroup");
+        for (int resolution = 0; resolution < resolutions; resolution++) {
+            contents.add(Integer.toString(resolution) + '/');
+        }
+        respondWithDirectory(response, "Image #" + imageId, contents.build());
+    }
+
+    /**
+     * Handle a request for the group directory in flattened mode.
+     * @param response the HTTP server response to populate
+     * @param imageId the ID of the image being queried
+     * @param resolution the resolution to query
+     */
+    private void returnGroupDirectoryFlattened(HttpServerResponse response, long imageId, int resolution) {
+        LOGGER.debug("providing flattened directory listing for resolution {} of Image:{}", resolution, imageId);
+        /* gather data from pixels service */
+        final DataShape shape = getDataShape(response, imageId, resolution);
+        if (response.ended()) {
+            return;
+        }
+        /* package data for client */
+        final ImmutableList.Builder<String> contents = ImmutableList.builder();
+        contents.add(".zarray");
+        for (int t = 0; t < shape.tSize; t += 1) {
+            for (int c = 0; c < shape.cSize; c += 1) {
+                for (int z = 0; z < shape.zSize; z += shape.zTile) {
+                    for (int y = 0; y < shape.ySize; y += shape.yTile) {
+                        for (int x = 0; x < shape.xSize; x += shape.xTile) {
+                            contents.add(Joiner.on('.').join(t, c, z / shape.zTile, y / shape.yTile, x / shape.xTile));
+                        }
+                    }
+                }
+            }
+        }
+        respondWithDirectory(response, "Image #" + imageId + ", resolution " + resolution + " (flattened)", contents.build());
+    }
+
+    /**
+     * Handle a request for the group directory in nested mode.
+     * @param response the HTTP server response to populate
+     * @param imageId the ID of the image being queried
+     * @param resolution the resolution to query
+     * @param depth how many directory levels inside the group
+     */
+    private void returnGroupDirectoryNested(HttpServerResponse response, long imageId, int resolution, int depth) {
+        LOGGER.debug("providing nested directory listing for resolution {} of Image:{} at depth {}", resolution, imageId, depth);
+        /* gather data from pixels service */
+        final DataShape shape = getDataShape(response, imageId, resolution);
+        if (response.ended()) {
+            return;
+        }
+        /* package data for client */
+        final ImmutableList.Builder<String> contents = ImmutableList.builder();
+        if (depth == 0) {
+            contents.add(".zarray");
+        }
+        final int extent, step;
+        switch (depth) {
+        case 0:
+            extent = shape.tSize;
+            step = 1;
+            break;
+        case 1:
+            extent = shape.cSize;
+            step = 1;
+            break;
+        case 2:
+            extent = shape.zSize;
+            step = shape.zTile;
+            break;
+        case 3:
+            extent = shape.ySize;
+            step = shape.yTile;
+            break;
+        case 4:
+            extent = shape.xSize;
+            step = shape.xTile;
+            break;
+        default:
+            throw new IllegalArgumentException("depth cannot be " + depth);
+        }
+        final StringBuilder content = new StringBuilder();
+        for (int position = 0; position < extent; position += step) {
+            content.setLength(0);
+            content.append(position / step);
+            if (depth < 4) {
+                content.append('/');
+            }
+            contents.add(content.toString());
+        }
+        respondWithDirectory(response, "Image #" + imageId + ", resolution " + resolution + " (nested)", contents.build());
     }
 
     /**
@@ -433,47 +693,30 @@ public class RequestHandlerForImage implements HttpHandler {
      */
     private void returnAttrs(HttpServerResponse response, long imageId) {
         LOGGER.debug("providing .zattrs for Image:{}", imageId);
+        /* gather data from pixels service */
         final Pixels pixels = omeroDao.getPixels(imageId);
-        if (pixels == null) {
-            fail(response, 404, "no image for that id and resolution");
+        final List<List<Integer>> resolutions = getDataFromPixels(response, pixels, buffer ->  buffer.getResolutionDescriptions());
+        if (response.ended()) {
             return;
         }
-        /* gather data from pixels service */
-        final List<Double> scales;
-        PixelBuffer buffer = null;
-        try {
-            buffer = pixelsService.getPixelBuffer(pixels, false);
-            final List<List<Integer>> resolutions = buffer.getResolutionDescriptions();
-            double xMax = 0, yMax = 0;
-            for (final List<Integer> resolution : resolutions) {
-                final int x = resolution.get(0);
-                final int y = resolution.get(1);
-                if (xMax < x) {
-                    xMax = x;
-                }
-                if (yMax < y) {
-                    yMax = y;
-                }
+        double xMax = 0, yMax = 0;
+        for (final List<Integer> resolution : resolutions) {
+            final int x = resolution.get(0);
+            final int y = resolution.get(1);
+            if (xMax < x) {
+                xMax = x;
             }
-            scales = new ArrayList<>(resolutions.size());
-            for (final List<Integer> resolution : resolutions) {
-                final int x = resolution.get(0);
-                final int y = resolution.get(1);
-                final double xScale = x / xMax;
-                final double yScale = y / yMax;
-                scales.add(xScale == yScale ? xScale : null);
+            if (yMax < y) {
+                yMax = y;
             }
-        } catch (Exception e) {
-            fail(response, 500, "query failed");
-            return;
-        } finally {
-            if (buffer != null) {
-                try {
-                    buffer.close();
-                } catch (IOException ioe) {
-                    /* probably already failing anyway */
-                }
-            }
+        }
+        final List<Double> scales = new ArrayList<>(resolutions.size());
+        for (final List<Integer> resolution : resolutions) {
+            final int x = resolution.get(0);
+            final int y = resolution.get(1);
+            final double xScale = x / xMax;
+            final double yScale = y / yMax;
+            scales.add(xScale == yScale ? xScale : null);
         }
         /* package data for client */
         final List<Map<String, Object>> datasets = new ArrayList<>();
@@ -529,6 +772,7 @@ public class RequestHandlerForImage implements HttpHandler {
             isSigned = buffer.isSigned();
             isFloat = buffer.isFloat();
         } catch (Exception e) {
+            LOGGER.debug("pixel buffer failure", e);
             fail(response, 500, "query failed");
             return;
         } finally {
@@ -563,17 +807,13 @@ public class RequestHandlerForImage implements HttpHandler {
      */
     private void returnChunk(HttpServerResponse response, long imageId, int resolution, List<Integer> chunkId) {
         LOGGER.debug("providing chunk {} of resolution {} of Image:{}", chunkId, resolution, imageId);
-        if (chunkId.size() != 5) {
-            fail(response, 404, "no chunk with that index");
-            return;
-        }
         /* gather data from pixels service */
         final byte[] chunk;
         PixelBuffer buffer = null;
         try {
             buffer = cache.getPixelBuffer(imageId, resolution);
             if (buffer == null) {
-                fail(response, 404, "no image for that id");
+                fail(response, 404, "no image for that id and resolution");
                 return;
             }
             final DataShape shape = new DataShape(buffer).adjustTileSize(chunkSizeAdjust, chunkSizeMin);
@@ -626,6 +866,7 @@ public class RequestHandlerForImage implements HttpHandler {
                 tile.dispose();
             }
         } catch (Exception e) {
+            LOGGER.debug("pixel buffer failure", e);
             fail(response, 500, "query failed");
             return;
         } finally {
