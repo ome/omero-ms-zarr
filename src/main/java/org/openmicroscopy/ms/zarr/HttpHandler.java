@@ -19,15 +19,13 @@
 
 package org.openmicroscopy.ms.zarr;
 
-import io.vertx.core.Handler;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
 
 /**
  * Instances can respond to HTTP requests.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public interface HttpHandler extends Handler<RoutingContext> {
+public interface HttpHandler {
 
     /**
      * Add this instance as GET handler for the API paths.
