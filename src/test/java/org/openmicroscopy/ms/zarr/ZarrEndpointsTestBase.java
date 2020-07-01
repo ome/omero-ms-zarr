@@ -20,6 +20,7 @@
 package org.openmicroscopy.ms.zarr;
 
 import org.openmicroscopy.ms.zarr.stub.PixelBufferFake;
+import org.openmicroscopy.ms.zarr.stub.RouterFake;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
@@ -50,6 +51,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
 import org.hibernate.Query;
@@ -98,10 +100,7 @@ public abstract class ZarrEndpointsTestBase {
     @Mock
     private HttpServerResponse httpResponse;
 
-    @Mock
-    private RoutingContext context;
-
-    private HttpHandler handler;
+    private Router router;
 
     /* A note of property values for later comparison. */
     protected String imageName;
@@ -188,18 +187,20 @@ public abstract class ZarrEndpointsTestBase {
         MockitoAnnotations.initMocks(this);
         final Pixels pixels = constructMockPixels();
         Mockito.when(query.uniqueResult()).thenReturn(pixels);
+        Mockito.when(query.setParameter(Mockito.eq(0), Mockito.anyLong())).thenReturn(query);
         Mockito.when(sessionMock.createQuery(Mockito.anyString())).thenReturn(query);
         Mockito.when(sessionFactoryMock.openSession()).thenReturn(sessionMock);
         Mockito.when(pixelsServiceMock.getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false))).thenReturn(pixelBuffer);
         Mockito.when(httpRequest.method()).thenReturn(HttpMethod.GET);
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
-        Mockito.when(context.request()).thenReturn(httpRequest);
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
         final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
         final Configuration configuration = new Configuration(settings);
         final OmeroDao dao = new OmeroDao(sessionFactoryMock);
         final PixelBufferCache cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
-        handler = new RequestHandlerForImage(configuration, pixelsServiceMock, cache, dao);
+        final HttpHandler handler = new RequestHandlerForImage(configuration, pixelsServiceMock, cache, dao);
+        router = new RouterFake();
+        handler.handleFor(router);
     }
 
     /**
@@ -223,7 +224,7 @@ public abstract class ZarrEndpointsTestBase {
      */
     protected JsonObject getResponseAsJson(Object... query) {
         Mockito.when(httpRequest.path()).thenReturn(getUriPath(query));
-        handler.handle(context);
+        router.handle(httpRequest);
         final ArgumentCaptor<String> responseLengthCaptor = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<String> responseContentCaptor = ArgumentCaptor.forClass(String.class);
         Mockito.verify(httpResponse, Mockito.never()).setStatusCode(Mockito.anyInt());
@@ -243,7 +244,7 @@ public abstract class ZarrEndpointsTestBase {
      */
     protected byte[] getResponseAsBytes(Object... query) {
         Mockito.when(httpRequest.path()).thenReturn(getUriPath(query));
-        handler.handle(context);
+        router.handle(httpRequest);
         final ArgumentCaptor<String> responseLengthCaptor = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<Buffer> responseContentCaptor = ArgumentCaptor.forClass(Buffer.class);
         Mockito.verify(httpResponse, Mockito.times(1)).putHeader(Mockito.eq("Content-Type"), Mockito.eq(MEDIA_TYPE_BINARY));
@@ -263,9 +264,7 @@ public abstract class ZarrEndpointsTestBase {
     protected Stream<Arguments> provideGroupDetails() throws IOException {
         mockSetup();
         final Stream.Builder<Arguments> details = Stream.builder();
-        Mockito.when(httpRequest.path()).thenReturn(getUriPath(0, ".zattrs"));
-        handler.handle(context);
-        final JsonObject response = getResponseAsJson();
+        final JsonObject response = getResponseAsJson(0, ".zattrs");
         final JsonArray multiscales = response.getJsonArray("multiscales");
         final JsonObject multiscale = multiscales.getJsonObject(0);
         final JsonArray datasets = multiscale.getJsonArray("datasets");

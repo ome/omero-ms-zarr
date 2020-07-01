@@ -81,6 +81,7 @@ public class PixelBufferCacheTest {
     public void mockSetup() {
         MockitoAnnotations.initMocks(this);
         Mockito.when(query.uniqueResult()).thenReturn(new Pixels());
+        Mockito.when(query.setParameter(Mockito.eq(0), Mockito.anyLong())).thenReturn(query);
         Mockito.when(sessionMock.createQuery(Mockito.anyString())).thenReturn(query);
         Mockito.when(sessionFactoryMock.openSession()).thenReturn(sessionMock);
         Mockito.when(pixelsServiceMock.getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false))).thenAnswer(
