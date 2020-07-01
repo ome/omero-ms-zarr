@@ -41,7 +41,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,6 +53,7 @@ import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -266,18 +267,17 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param pattern a regular expression defining the paths that should be handled
      * @param handler the handler for the given paths
      */
-    private void handleFor(Router router, Pattern pattern, BiConsumer<HttpServerResponse, String> handler) {
+    private void handleFor(Router router, Pattern pattern, Consumer<HttpServerRequest> handler) {
         router.getWithRegex(pattern.pattern()).handler(new Handler<RoutingContext>() {
             @Override
             public void handle(RoutingContext context) {
-                final HttpServerResponse response = context.response();
-                final String path = context.request().path();
+                final HttpServerRequest request = context.request();
                 try {
-                    handler.accept(response, path);
+                    handler.accept(request);
                 } catch (NumberFormatException nfe) {
-                    fail(response, 400, "failed to parse integer");
+                    fail(request.response(), 400, "failed to parse integer");
                 } catch (IllegalArgumentException iae) {
-                    fail(response, 404, "path specifies unknown form of query parameters");
+                    fail(request.response(), 404, "path specifies unknown form of query parameters");
                 }
             }
         });
@@ -425,11 +425,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the image directory.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnImageDirectory(HttpServerResponse response, String path) {
+    private void returnImageDirectory(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForImageDir.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -452,11 +453,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the group directory in flattened mode.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnGroupDirectoryFlattened(HttpServerResponse response, String path) {
+    private void returnGroupDirectoryFlattened(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForGroupDir.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -486,10 +488,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the group directory in nested mode.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnGroupDirectoryNested(HttpServerResponse response, String path) {
+    private void returnGroupDirectoryNested(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
+        /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForGroupDir.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -499,10 +503,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the chunk directory in nested mode.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnChunkDirectory(HttpServerResponse response, String path) {
+    private void returnChunkDirectory(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
+        /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForChunkDir.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -572,11 +578,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zgroup}.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnGroup(HttpServerResponse response, String path) {
+    private void returnGroup(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForGroup.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -675,11 +682,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zattrs}.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnAttrs(HttpServerResponse response, String path) {
+    private void returnAttrs(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForAttrs.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -738,11 +746,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zarray}.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnArray(HttpServerResponse response, String path) {
+    private void returnArray(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForArray.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
@@ -795,11 +804,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for a chunk of the pixel data.
-     * @param response the HTTP server response to populate
-     * @param path the path suffix from the HTTP request, specifying the query parameters
+     * @param request the HTTP server request to handle
      */
-    private void returnChunk(HttpServerResponse response, String path) {
+    private void returnChunk(HttpServerRequest request) {
+        final HttpServerResponse response = request.response();
         /* parse parameters from path */
+        final String path = request.path();
         final Matcher matcher = patternForChunk.matcher(path);
         matcher.matches();
         final long imageId = Long.parseLong(matcher.group(1));
