@@ -287,6 +287,9 @@ public class RequestHandlerForImage implements HttpHandler {
                     fail(response, 400, "failed to parse integer");
                 } catch (IllegalArgumentException iae) {
                     fail(response, 404, "path specifies unknown form of query parameters");
+                } catch (Throwable t) {
+                    LOGGER.warn("unexpected failure handling path: {}", requestPath, t);
+                    throw t;
                 }
             }
         });
