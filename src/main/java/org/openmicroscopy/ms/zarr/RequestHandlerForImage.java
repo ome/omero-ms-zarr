@@ -41,7 +41,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,7 +53,6 @@ import com.google.common.collect.ImmutableMap;
 
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -267,17 +266,27 @@ public class RequestHandlerForImage implements HttpHandler {
      * @param pattern a regular expression defining the paths that should be handled
      * @param handler the handler for the given paths
      */
-    private void handleFor(Router router, Pattern pattern, Consumer<HttpServerRequest> handler) {
+    private void handleFor(Router router, Pattern pattern, BiConsumer<HttpServerResponse, List<String>> handler) {
         router.getWithRegex(pattern.pattern()).handler(new Handler<RoutingContext>() {
             @Override
             public void handle(RoutingContext context) {
-                final HttpServerRequest request = context.request();
+                final String requestPath = context.request().path();
+                final HttpServerResponse response = context.response();
                 try {
-                    handler.accept(request);
+                    final Matcher matcher = pattern.matcher(requestPath);
+                    if (matcher.matches()) {
+                        final List<String> groups = new ArrayList<String>(matcher.groupCount());
+                        for (int groupIndex = 1; groupIndex <= matcher.groupCount(); groupIndex++) {
+                            groups.add(matcher.group(groupIndex));
+                        }
+                        handler.accept(response, groups);
+                    } else {
+                        fail(response, 500, "regular expression failure in routing HTTP request");
+                    }
                 } catch (NumberFormatException nfe) {
-                    fail(request.response(), 400, "failed to parse integer");
+                    fail(response, 400, "failed to parse integer");
                 } catch (IllegalArgumentException iae) {
-                    fail(request.response(), 404, "path specifies unknown form of query parameters");
+                    fail(response, 404, "path specifies unknown form of query parameters");
                 }
             }
         });
@@ -425,15 +434,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the image directory.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnImageDirectory(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnImageDirectory(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForImageDir.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
+        final long imageId = Long.parseLong(parameters.get(0));
         LOGGER.debug("providing directory listing for Image:{}", imageId);
         /* gather data from pixels service */
         final Pixels pixels = omeroDao.getPixels(imageId);
@@ -453,16 +459,13 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the group directory in flattened mode.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnGroupDirectoryFlattened(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnGroupDirectoryFlattened(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForGroupDir.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
-        final int resolution = Integer.parseInt(matcher.group(2));
+        final long imageId = Long.parseLong(parameters.get(0));
+        final int resolution = Integer.parseInt(parameters.get(1));
         LOGGER.debug("providing flattened directory listing for resolution {} of Image:{}", resolution, imageId);
         /* gather data from pixels service */
         final DataShape shape = getDataShape(response, imageId, resolution);
@@ -488,34 +491,28 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for the group directory in nested mode.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnGroupDirectoryNested(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnGroupDirectoryNested(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForGroupDir.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
-        final int resolution = Integer.parseInt(matcher.group(2));
+        final long imageId = Long.parseLong(parameters.get(0));
+        final int resolution = Integer.parseInt(parameters.get(1));
         returnGroupDirectoryNested(response, imageId, resolution, 0);
     }
 
     /**
      * Handle a request for the chunk directory in nested mode.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnChunkDirectory(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnChunkDirectory(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForChunkDir.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
-        final int resolution = Integer.parseInt(matcher.group(2));
-        final List<Integer> chunkDir = getIndicesFromPath(matcher.group(3));
+        final long imageId = Long.parseLong(parameters.get(0));
+        final int resolution = Integer.parseInt(parameters.get(1));
+        final List<Integer> chunkDir = getIndicesFromPath(parameters.get(2));
         if (chunkDir.size() >= 5) {
-            throw new IllegalArgumentException("cannot parse: " + path);
+            throw new IllegalArgumentException("chunks must have five dimensions");
         }
         returnGroupDirectoryNested(response, imageId, resolution, chunkDir.size());
     }
@@ -578,15 +575,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zgroup}.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnGroup(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnGroup(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForGroup.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
+        final long imageId = Long.parseLong(parameters.get(0));
         LOGGER.debug("providing .zgroup for Image:{}", imageId);
         /* package data for client */
         final Pixels pixels = omeroDao.getPixels(imageId);
@@ -682,15 +676,12 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zattrs}.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnAttrs(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnAttrs(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForAttrs.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
+        final long imageId = Long.parseLong(parameters.get(0));
         LOGGER.debug("providing .zattrs for Image:{}", imageId);
         /* gather data from pixels service */
         final Pixels pixels = omeroDao.getPixels(imageId);
@@ -746,16 +737,13 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for {@code .zarray}.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnArray(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnArray(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForArray.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
-        final int resolution = Integer.parseInt(matcher.group(2));
+        final long imageId = Long.parseLong(parameters.get(0));
+        final int resolution = Integer.parseInt(parameters.get(1));
         LOGGER.debug("providing .zarray for resolution {} of Image:{}", resolution, imageId);
         /* gather data from pixels service */
         final DataShape shape;
@@ -804,19 +792,16 @@ public class RequestHandlerForImage implements HttpHandler {
 
     /**
      * Handle a request for a chunk of the pixel data.
-     * @param request the HTTP server request to handle
+     * @param response the HTTP server response to populate
+     * @param parameters the parameters of the request to handle
      */
-    private void returnChunk(HttpServerRequest request) {
-        final HttpServerResponse response = request.response();
+    private void returnChunk(HttpServerResponse response, List<String> parameters) {
         /* parse parameters from path */
-        final String path = request.path();
-        final Matcher matcher = patternForChunk.matcher(path);
-        matcher.matches();
-        final long imageId = Long.parseLong(matcher.group(1));
-        final int resolution = Integer.parseInt(matcher.group(2));
-        final List<Integer> chunkId = getIndicesFromPath(matcher.group(3));
+        final long imageId = Long.parseLong(parameters.get(0));
+        final int resolution = Integer.parseInt(parameters.get(1));
+        final List<Integer> chunkId = getIndicesFromPath(parameters.get(2));
         if (chunkId.size() != 5) {
-            throw new IllegalArgumentException("cannot parse: " + path);
+            throw new IllegalArgumentException("chunks must have five dimensions");
         }
         LOGGER.debug("providing chunk {} of resolution {} of Image:{}", chunkId, resolution, imageId);
         /* gather data from pixels service */
