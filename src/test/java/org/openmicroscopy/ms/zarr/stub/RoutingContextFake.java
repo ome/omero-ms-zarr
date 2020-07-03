@@ -19,252 +19,302 @@
 
 package org.openmicroscopy.ms.zarr.stub;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.web.Cookie;
+import io.vertx.ext.web.FileUpload;
+import io.vertx.ext.web.Locale;
+import io.vertx.ext.web.ParsedHeaderValues;
 import io.vertx.ext.web.Route;
-import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-
-import org.junit.jupiter.api.Assertions;
+import io.vertx.ext.web.Session;
 
 /**
- * A fake router allowing unit tests to verify the handling of mock HTTP requests.
+ * A fake routing context allowing unit tests to verify the handling of mock HTTP requests.
  * @author m.t.b.carroll@dundee.ac.uk
  * @since v0.1.5
  */
-public class RouterFake implements Router {
+public class RoutingContextFake implements RoutingContext {
 
-    private final Map<String, Handler<RoutingContext>> routes = new LinkedHashMap<>();
+    private final HttpServerRequest request;
 
-    @Override
-    public Route getWithRegex(String regex) {
-        if (routes.containsKey(regex)) {
-            throw new IllegalArgumentException("route already exists");
-        } else {
-            routes.put(regex, null);
-        }
-        return new RouteBase() {
-            @Override
-            public Route handler(Handler<RoutingContext> requestHandler) {
-                routes.put(regex, requestHandler);
-                return this;
-            }
-        };
+    public RoutingContextFake(HttpServerRequest request) {
+        this.request = request;
     }
 
     @Override
-    public void handle(HttpServerRequest httpRequest) {
-        for (final Map.Entry<String, Handler<RoutingContext>> route : routes.entrySet()) {
-            if (Pattern.matches(route.getKey(), httpRequest.path())) {
-                final RoutingContext routingContext = new RoutingContextFake(httpRequest);
-                route.getValue().handle(routingContext);
-                return;
-            }
-        }
-        Assertions.fail("HTTP request path is unhandled: " + httpRequest.path());
+    public HttpServerRequest request() {
+        return request;
+    }
+
+    @Override
+    public HttpServerResponse response() {
+        return request.response();
     }
 
     /* All other methods simply throw. */
 
     @Override
-    public Route route() {
+    public void next() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route route(HttpMethod method, String path) {
+    public void fail(int statusCode) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route route(String path) {
+    public void fail(Throwable throwable) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route routeWithRegex(HttpMethod method, String regex) {
+    public void fail(int statusCode, Throwable throwable) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route routeWithRegex(String regex) {
+    public RoutingContext put(String key, Object obj) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route get() {
+    public <T> T get(String key) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route get(String path) {
+    public <T> T remove(String key) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route head() {
+    public Map<String, Object> data() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route head(String path) {
+    public Vertx vertx() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route headWithRegex(String regex) {
+    public @Nullable String mountPoint() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route options() {
+    public Route currentRoute() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route options(String path) {
+    public String normalisedPath() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route optionsWithRegex(String regex) {
+    public @Nullable Cookie getCookie(String name) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route put() {
+    public RoutingContext addCookie(io.vertx.core.http.Cookie cookie) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route put(String path) {
+    public RoutingContext addCookie(Cookie cookie) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route putWithRegex(String regex) {
+    public @Nullable Cookie removeCookie(String name, boolean invalidate) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route post() {
+    public int cookieCount() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route post(String path) {
+    public Set<Cookie> cookies() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route postWithRegex(String regex) {
+    public Map<String, io.vertx.core.http.Cookie> cookieMap() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route delete() {
+    public @Nullable String getBodyAsString() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route delete(String path) {
+    public @Nullable String getBodyAsString(String encoding) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route deleteWithRegex(String regex) {
+    public @Nullable JsonObject getBodyAsJson() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route trace() {
+    public @Nullable JsonArray getBodyAsJsonArray() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route trace(String path) {
+    public @Nullable Buffer getBody() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route traceWithRegex(String regex) {
+    public Set<FileUpload> fileUploads() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route connect() {
+    public @Nullable Session session() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route connect(String path) {
+    public boolean isSessionAccessed() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route connectWithRegex(String regex) {
+    public @Nullable User user() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route patch() {
+    public @Nullable Throwable failure() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route patch(String path) {
+    public int statusCode() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Route patchWithRegex(String regex) {
+    public @Nullable String getAcceptableContentType() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public List<Route> getRoutes() {
+    public ParsedHeaderValues parsedHeaders() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Router clear() {
+    public int addHeadersEndHandler(Handler<Void> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Router mountSubRouter(String mountPoint, Router subRouter) {
+    public boolean removeHeadersEndHandler(int handlerID) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Router exceptionHandler(@Nullable Handler<Throwable> exceptionHandler) {
+    public int addBodyEndHandler(Handler<Void> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Router errorHandler(int statusCode, Handler<RoutingContext> errorHandler) {
+    public boolean removeBodyEndHandler(int handlerID) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void handleContext(RoutingContext context) {
+    public int addEndHandler(Handler<AsyncResult<Void>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void handleFailure(RoutingContext context) {
+    public boolean removeEndHandler(int handlerID) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Router modifiedHandler(Handler<Router> handler) {
+    public boolean failed() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setBody(Buffer body) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setSession(Session session) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setUser(User user) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clearUser() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setAcceptableContentType(@Nullable String contentType) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void reroute(HttpMethod method, String path) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<Locale> acceptableLocales() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<String, String> pathParams() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @Nullable String pathParam(String name) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public MultiMap queryParams() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<String> queryParam(String name) {
         throw new UnsupportedOperationException();
     }
 }
