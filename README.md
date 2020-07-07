@@ -3,6 +3,10 @@
 This is a simple microservice that shows how a web endpoint can be provided
 for querying role IDs from an OMERO database.
 
+This also contains the [official OME Zarr specification](./spec.md).
+
+For an overview of other OME Zarr projects see [`related.md`](./related.md).
+
 
 ## Build
 
