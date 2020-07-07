@@ -21,7 +21,9 @@ for public re-use.
     │                         #  "multiscales" and "omero" below)
     │
     ├── 0                     # Each multiscale level is stored as a separate Zarr array,
-    │   │                     # which is a folder containing chunk files which compose the array.
+    │   ...                   # which is a folder containing chunk files which compose the array.
+    ├── n                     # The name of the array is arbitrary with the ordering defined by
+    │   │                     # by the "multiscales" metadata, but is often a sequence starting at 0.
     │   │
     │   ├── .zarray           # All image arrays are 5-dimensional
     │   │                     # with dimension order (t, c, z, y, x).
