@@ -35,7 +35,7 @@ for public re-use.
         │
         ├── .zgroup           # The masks group is a container which holds a list
         ├── .zattrs           # of masks to make the objects easily discoverable,
-        │                     # e.g. `{ "masks": [ "original/0" ] }`
+        │                     # All masks will be listed in `.zattrs` e.g. `{ "masks": [ "original/0" ] }`
         │
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
