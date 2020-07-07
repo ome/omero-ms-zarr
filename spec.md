@@ -150,5 +150,3 @@ the value is an RGBA color (4 byte, `0-255` per channel) for representing the ob
 | 0.1.2      | 2020-05-07   | Add description of "omero" metadata        |
 | 0.1.1      | 2020-05-06   | Add info on the ordering of resolutions    |
 | 0.1.0      | 2020-04-20   | First version for internal demo            |
-
-SubMISSION PROCESS
