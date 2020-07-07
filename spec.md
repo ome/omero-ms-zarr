@@ -130,7 +130,7 @@ Unlisted groups MAY be masks.
 The `color` key defines an image that is "labeled", i.e. every unique value in the image
 represents a unique, non-overlapping object within the image. The value associated with
 the `color` key is another JSON object in which the key is the pixel value of the image and
-the value is an RGBA color for representing the object:
+the value is an RGBA color (4 byte, `0-255` per channel) for representing the object:
 
 ```
 {
