@@ -16,4 +16,4 @@ An OMERO CLI plugin that converts images stored in OMERO.server into a local Zar
 
 
 ## [ome-zarr-py](https://github.com/ome/ome-zarr-py)
-Not entirely sure...
+A napari plugin for reading ome-zarr files.
