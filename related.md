@@ -1,4 +1,5 @@
 # Overview of OME Zarr projects
+We will eventually have comprehensive documentation on OME Zarr, but for now this is an overview of all the related projects.
 
 
 ## omero-ms-zarr (this repository)
@@ -17,3 +18,7 @@ An OMERO CLI plugin that converts images stored in OMERO.server into a local Zar
 
 ## [ome-zarr-py](https://github.com/ome/ome-zarr-py)
 A napari plugin for reading ome-zarr files.
+
+
+## Global diagram
+See this diagram for a global view of how the Zarr format and utilities, storage technologies, and analysis tools fit together: https://downloads.openmicroscopy.org/presentations/2020/Dundee/Workshops/NGFF/zarr_diagram/
