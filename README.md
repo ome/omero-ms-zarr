@@ -1,11 +1,20 @@
 # OMERO Zarr Microservice
 
-This is a simple microservice that shows how a web endpoint can be provided
-for querying role IDs from an OMERO database.
+An OMERO.server microservice that serves OME.zarr images and metadata.
 
 This also contains the [official OME Zarr specification](./spec.md).
 
 For an overview of other OME Zarr projects see [`related.md`](./related.md).
+
+
+## Summary
+
+This microservice fetchs images from OMERO.server and converts them to OME.zarr images on the fly. It should be run alongside OMERO.server, and requires access to the OMERO PostgreSQL database and the OMERO data directory.
+
+Clients can request an OMERO image over HTTP, and will receive an OME Zarr compliant image including metadata.
+
+This microservice is still under heavy development, and does not yet support authentication.
+It is not suitable for production use.
 
 
 ## Build
