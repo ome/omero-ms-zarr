@@ -38,6 +38,9 @@ for public re-use.
         ├── .zgroup           # The masks group is a container which holds a list
         ├── .zattrs           # of masks to make the objects easily discoverable,
         │                     # All masks will be listed in `.zattrs` e.g. `{ "masks": [ "original/0" ] }`
+        │                     # Each dimension of the mask `(t, c, z, y, x)` should be either the same as the
+        │                     # corresponding dimension of the image, or `1` if that dimension of the mask
+        │                     # is irrelevant.
         │
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
