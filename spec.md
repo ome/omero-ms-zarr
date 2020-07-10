@@ -42,10 +42,8 @@ for public re-use.
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
             └── 0
-                ├── .zgroup   # Each mask itself is also a multiscale image with the extra key
-                ├── .zattrs   # "color".
-                │
-                └── t.c.z.y.x # Chunks as above.
+                ├── .zarray   # Each mask itself is a 5D array matching the highest resolution
+                └── .zattrs   # of the related image and has an extra key, "color", with display information.
 
 
 ```
