@@ -11,14 +11,19 @@ This also contains the official specification of the [OME Zarr format](https://g
 ## [idr-zarr-tools](https://github.com/IDR/idr-zarr-tools)
 A full workflow demonstrating the conversion of IDR images to OME Zarr images on S3.
 
+## [zarr.md](https://github.com/IDR/SubmissionWorkflow/blob/master/zarr.md)
+
+A description of the IDR
+[submission workflow](https://github.com/IDR/SubmissionWorkflow#idr-submission-workflow-documentation).
+steps for generating Zarrs.
 
 ## [OMERO CLI Zarr plugin](https://github.com/ome/omero-cli-zarr)
 An OMERO CLI plugin that converts images stored in OMERO.server into a local Zarr file.
 
-
 ## [ome-zarr-py](https://github.com/ome/ome-zarr-py)
 A napari plugin for reading ome-zarr files.
 
-
 ## Global diagram
-See this diagram for a global view of how the Zarr format and utilities, storage technologies, and analysis tools fit together: https://downloads.openmicroscopy.org/presentations/2020/Dundee/Workshops/NGFF/zarr_diagram/
+See this diagram for a global view of how the Zarr format and utilities,
+storage technologies, and analysis tools fit together:
+https://downloads.openmicroscopy.org/presentations/2020/Dundee/Workshops/NGFF/zarr_diagram/
