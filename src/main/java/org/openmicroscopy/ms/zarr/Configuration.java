@@ -52,11 +52,13 @@ public class Configuration {
     public final static String CONF_CHUNK_SIZE_MIN = "chunk.size.min";
     public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
     public final static String CONF_FOLDER_LAYOUT = "folder.layout";
+    public final static String CONF_MASK_CACHE_SIZE = "mask-cache.size";
     public final static String CONF_NET_PATH_IMAGE = "net.path.image";
     public final static String CONF_NET_PORT = "net.port";
 
     /* Configuration initialized to default values. */
-    private int cacheSize = 16;
+    private int bufferCacheSize = 16;
+    private long maskCacheSize = 250 * 1000000L;
     private List<Character> chunkSizeAdjust = ImmutableList.of('X', 'Y', 'Z');
     private int chunkSizeMin = 0x100000;
     private int zlibLevel = 6;
@@ -115,19 +117,20 @@ public class Configuration {
      * @param configuration the configuration keys and values to apply over the current state.
      */
     private void setConfiguration(Map<String, String> configuration) {
-        final String cacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
+        final String bufferCacheSize = configuration.get(CONF_BUFFER_CACHE_SIZE);
         final String chunkSizeAdjust = configuration.get(CONF_CHUNK_SIZE_ADJUST);
         final String chunkSizeMin = configuration.get(CONF_CHUNK_SIZE_MIN);
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
         final String folderLayout = configuration.get(CONF_FOLDER_LAYOUT);
+        final String maskCacheSize = configuration.get(CONF_MASK_CACHE_SIZE);
         final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
         final String netPort = configuration.get(CONF_NET_PORT);
 
-        if (cacheSize != null) {
+        if (bufferCacheSize != null) {
             try {
-                this.cacheSize = Integer.parseInt(cacheSize);
+                this.bufferCacheSize = Integer.parseInt(bufferCacheSize);
             } catch (NumberFormatException nfe) {
-                final String message = "buffer cache size must be an integer, not " + cacheSize;
+                final String message = "buffer cache size must be an integer, not " + bufferCacheSize;
                 LOGGER.error(message);
                 throw new IllegalArgumentException(message);
             }
@@ -195,6 +198,16 @@ public class Configuration {
             }
         }
 
+        if (maskCacheSize != null) {
+            try {
+                this.maskCacheSize = Long.parseLong(maskCacheSize) * 1000000L;
+            } catch (NumberFormatException nfe) {
+                final String message = "mask cache size must be an integer, not " + maskCacheSize;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
         if (netPath != null) {
             if (netPath.indexOf('\\') == -1) {
                 if (netPath.contains(PLACEHOLDER_IMAGE_ID)) {
@@ -232,7 +245,7 @@ public class Configuration {
      * @return the configured pixel buffer cache size
      */
     public int getBufferCacheSize() {
-        return cacheSize;
+        return bufferCacheSize;
     }
 
     /**
@@ -261,6 +274,13 @@ public class Configuration {
      */
     public Boolean getFoldersNested() {
         return foldersNested;
+    }
+
+    /**
+     * @return the configured mask cache size
+     */
+    public long getMaskCacheSize() {
+        return maskCacheSize;
     }
 
     /**
