@@ -24,7 +24,7 @@ import java.util.function.BiPredicate;
 /**
  * The most abstract kind of bitmask.
  * @author m.t.b.carroll@dundee.ac.uk
- * @since v0.1.6
+ * @since v0.1.7
  */
 public interface Bitmask {
     /**

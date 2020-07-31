@@ -1426,7 +1426,7 @@ public class RequestHandlerForImage implements HttpHandler {
     /**
      * Constructs tiles on request.
      * @author m.t.b.carroll@dundee.ac.uk
-     * @since v0.1.6
+     * @since v0.1.7
      */
     private interface TileGetter {
         /**

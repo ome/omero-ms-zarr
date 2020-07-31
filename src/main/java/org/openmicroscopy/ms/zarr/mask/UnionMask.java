@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  * Represents a mask that may combine multiple masks,
  * as for the union of multiple {@link ome.model.roi.Mask}s in the same {@link ome.model.roi.Roi}.
  * @author m.t.b.carroll@dundee.ac.uk
- * @since v0.1.6
+ * @since v0.1.7
  */
 public class UnionMask implements Bitmask {
 

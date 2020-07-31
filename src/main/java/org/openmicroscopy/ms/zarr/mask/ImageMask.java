@@ -28,7 +28,7 @@ import java.util.function.BiPredicate;
 /**
  * Represents a simple planar bitmask.
  * @author m.t.b.carroll@dundee.ac.uk
- * @since v0.1.6
+ * @since v0.1.7
  */
 public class ImageMask implements Bitmask {
 
