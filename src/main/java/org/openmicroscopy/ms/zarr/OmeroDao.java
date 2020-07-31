@@ -21,8 +21,14 @@ package org.openmicroscopy.ms.zarr;
 
 import ome.io.nio.PixelsService;
 import ome.model.core.Pixels;
+import ome.model.roi.Mask;
+import ome.model.roi.Roi;
 
+import java.util.Iterator;
+import java.util.SortedSet;
 import java.util.function.Function;
+
+import com.google.common.collect.ImmutableSortedSet;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -88,5 +94,53 @@ class OmeroDao {
                 "WHERE i.id = ?";
         return withSession(session ->
             (Pixels) session.createQuery(hql).setParameter(0, imageId).uniqueResult());
+    }
+
+    long getRoiCountOfImage(long imageId) {
+        LOGGER.debug("fetch Roi count for Image:{}", imageId);
+        final String hql =
+                "SELECT COUNT(id) FROM Roi " +
+                "WHERE image.id = ?";
+        return withSession(session ->
+            (Long) session.createQuery(hql).setParameter(0, imageId).uniqueResult());
+    }
+
+    SortedSet<Long> getRoiIdsOfImage(long imageId) {
+        LOGGER.debug("fetch Roi IDs for Image:{}", imageId);
+        final String hql =
+                "SELECT id FROM Roi " +
+                "WHERE image.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, imageId).iterate()));
+    }
+
+    long getMaskCountOfRoi(long roiId) {
+        LOGGER.debug("fetch Mask count for Roi:{}", roiId);
+        final String hql =
+                "SELECT COUNT(id) FROM Mask " +
+                "WHERE roi.id = ?";
+        return withSession(session ->
+            (Long) session.createQuery(hql).setParameter(0, roiId).uniqueResult());
+    }
+
+    SortedSet<Long> getMaskIdsOfRoi(long roiId) {
+        LOGGER.debug("fetch Mask IDs for Roi:{}", roiId);
+        final String hql =
+                "SELECT id FROM Mask " +
+                "WHERE roi.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, roiId).iterate()));
+    }
+
+    Roi getRoi(long roiId) {
+        LOGGER.debug("fetch Roi:{}", roiId);
+        return withSession(session ->
+            (Roi) session.get(Roi.class, roiId));
+    }
+
+    Mask getMask(long maskId) {
+        LOGGER.debug("fetch Mask:{}", maskId);
+        return withSession(session ->
+            (Mask) session.get(Mask.class, maskId));
     }
 }
