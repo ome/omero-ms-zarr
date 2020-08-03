@@ -116,22 +116,17 @@ public class UnionMask implements Bitmask {
         for (final Bitmask maskNewAbstract : masks) {
             if (maskNewAbstract instanceof ImageMask) {
                 /* Where possible, combine masks into a single new one. */
-                boolean isAdded = false;
-                final ImageMask maskNewConcrete = (ImageMask) maskNewAbstract;
+                ImageMask maskNewConcrete = (ImageMask) maskNewAbstract;
                 final Iterator<ImageMask> masksConcreteIter = masksConcrete.iterator();
                 while (masksConcreteIter.hasNext()) {
                     final ImageMask maskOldConcrete = masksConcreteIter.next();
                     final ImageMask maskUnion = maskOldConcrete.union(maskNewConcrete);
                     if (maskUnion != null) {
                         masksConcreteIter.remove();
-                        masksConcrete.add(maskUnion);
-                        isAdded = true;
-                        break;
+                        maskNewConcrete = maskUnion;
                     }
                 }
-                if (!isAdded) {
-                    masksConcrete.add(maskNewConcrete);
-                }
+                masksConcrete.add(maskNewConcrete);
             } else {
                 masksAbstract.add(maskNewAbstract);
             }
