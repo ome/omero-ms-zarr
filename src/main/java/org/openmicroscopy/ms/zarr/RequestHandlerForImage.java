@@ -33,6 +33,7 @@ import ome.model.display.CodomainMapContext;
 import ome.model.display.RenderingDef;
 import ome.model.display.ReverseIntensityContext;
 import ome.model.enums.RenderingModel;
+import ome.model.roi.Mask;
 import ome.model.roi.Roi;
 import ome.model.stats.StatsInfo;
 import ome.util.PixelData;
@@ -46,10 +47,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -1146,6 +1150,27 @@ public class RequestHandlerForImage implements HttpHandler {
     }
 
     /**
+     * Return a color for the given set of masks if all those with a color concur on which.
+     * @param maskIds some mask IDs
+     * @return a color for the masks, or {@code null} if no mask sets a color or masks differ on the color
+     */
+    private Integer getConsensusColor(Iterable<Long> maskIds) {
+        Integer roiColor = null;
+        for (final long maskId : maskIds) {
+            final Mask mask = omeroDao.getMask(maskId);
+            final Integer maskColor = mask.getFillColor();
+            if (maskColor != null) {
+                if (roiColor == null) {
+                    roiColor = maskColor;
+                } else if (!roiColor.equals(maskColor)) {
+                    return null;
+                }
+            }
+        }
+        return roiColor;
+    }
+
+    /**
      * Handle a request for {@code .zattrs} for a mask of an image.
      * @param response the HTTP server response to populate
      * @param parameters the parameters of the request to handle
@@ -1164,10 +1189,18 @@ public class RequestHandlerForImage implements HttpHandler {
         if (maskIds.isEmpty()) {
             throw new IllegalArgumentException("image has no such mask");
         }
+        final Integer maskColor = getConsensusColor(maskIds);
         /* package data for client */
+        final Map<String, Object> color = new HashMap<>();
+        if (maskColor != null) {
+            color.put(Boolean.toString(true), maskColor);
+        }
         final Map<String, Object> image = new HashMap<>();
         image.put("array", "../../0/");
         final Map<String, Object> result = new HashMap<>();
+        if (!color.isEmpty()) {
+            result.put("color", color);
+        }
         result.put("image", image);
         respondWithJson(response, new JsonObject(result));
     }
@@ -1277,10 +1310,24 @@ public class RequestHandlerForImage implements HttpHandler {
             fail(response, 404, "the image for that id does not have a labeled mask");
             return;
         }
+        final SortedMap<Long, Integer> maskColors = new TreeMap<>();
+        for (final long roiId : getRoiIdsWithMask(imageId)) {
+            final Collection<Long> maskIds = omeroDao.getMaskIdsOfRoi(roiId);
+            final Integer maskColor = getConsensusColor(maskIds);
+            if (maskColor != null) {
+                maskColors.put(roiId, maskColor);
+            }
+        }
         /* package data for client */
+        final Map<String, Integer> color = maskColors.entrySet().stream()
+                .collect(Collectors.toMap(entry -> Long.toString(entry.getKey()), Map.Entry::getValue,
+                        (v1, v2) -> { throw new IllegalStateException(); }, LinkedHashMap::new));
         final Map<String, Object> image = new HashMap<>();
         image.put("array", "../../0/");
         final Map<String, Object> result = new HashMap<>();
+        if (!color.isEmpty()) {
+            result.put("color", color);
+        }
         result.put("image", image);
         respondWithJson(response, new JsonObject(result));
     }
