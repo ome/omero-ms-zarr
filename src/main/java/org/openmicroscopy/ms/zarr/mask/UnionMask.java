@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  */
 public class UnionMask implements Bitmask {
 
-    private final Collection<Bitmask> masks;
+    final Collection<Bitmask> masks;
 
     /**
      * Construct a union mask from the given set of masks.
