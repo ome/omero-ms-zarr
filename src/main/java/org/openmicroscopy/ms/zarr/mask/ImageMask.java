@@ -211,7 +211,7 @@ public class ImageMask implements Bitmask {
                                 final int bitPosition = (x - pos.x) + (y - pos.y) * pos.width;
                                 final int bytePosition = bitPosition >> 3;
                                 final int bitRemainder = 7 - (bitPosition & 7);
-                                bitmask[bytePosition] |= bitmask[bytePosition] & 1 << bitRemainder;
+                                bitmask[bytePosition] |= 1 << bitRemainder;
                             }
                         }
                     }
