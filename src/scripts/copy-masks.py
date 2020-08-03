@@ -56,6 +56,7 @@ for mask_src in query_service.findAllByQuery(query, params):
     mask_dst.theC = mask_src.theC
     mask_dst.theT = mask_src.theT
     mask_dst.bytes = mask_src.bytes
+    mask_dst.fillColor = mask_src.fillColor
     mask_dst.transform = mask_src.transform
     roi_dst = RoiI()
     roi_dst.description = rstring(
