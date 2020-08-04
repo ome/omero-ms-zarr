@@ -41,6 +41,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -273,5 +275,26 @@ public abstract class ZarrEndpointsTestBase {
             details.add(Arguments.of(--resolution, dataset.getString("path"), dataset.getDouble("scale")));
         }
         return details.build();
+    }
+
+    /**
+     * Uncompress the given byte array.
+     * @param compressed a byte array
+     * @return the uncompressed bytes
+     * @throws DataFormatException unexpected
+     */
+    protected static byte[] uncompress(byte[] compressed) throws DataFormatException {
+        final Inflater inflater = new Inflater();
+        inflater.setInput(compressed);
+        final Buffer uncompressed = Buffer.factory.buffer(2 * compressed.length);
+        final byte[] batch = new byte[8192];
+        int batchSize;
+        do {
+            batchSize = inflater.inflate(batch);
+            uncompressed.appendBytes(batch, 0, batchSize);
+        } while (batchSize > 0);
+        Assertions.assertFalse(inflater.needsDictionary());
+        inflater.end();
+        return uncompressed.getBytes();
     }
 }

@@ -21,9 +21,7 @@ package org.openmicroscopy.ms.zarr;
 
 import java.io.IOException;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
@@ -38,27 +36,6 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @author m.t.b.carroll@dundee.ac.uk
  */
 public class ZarrBinaryDataTest extends ZarrEndpointsTestBase {
-
-    /**
-     * Uncompress the given byte array.
-     * @param compressed a byte array
-     * @return the uncompressed bytes
-     * @throws DataFormatException unexpected
-     */
-    private static byte[] uncompress(byte[] compressed) throws DataFormatException {
-        final Inflater inflater = new Inflater();
-        inflater.setInput(compressed);
-        final Buffer uncompressed = Buffer.factory.buffer(2 * compressed.length);
-        final byte[] batch = new byte[8192];
-        int batchSize;
-        do {
-            batchSize = inflater.inflate(batch);
-            uncompressed.appendBytes(batch, 0, batchSize);
-        } while (batchSize > 0);
-        Assertions.assertFalse(inflater.needsDictionary());
-        inflater.end();
-        return uncompressed.getBytes();
-    }
 
     boolean isSomeChunkFitsWithin;
     boolean isSomeChunkOverlapsRight;
