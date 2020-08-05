@@ -19,6 +19,7 @@
 
 package org.openmicroscopy.ms.zarr.mask;
 
+import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.Collections;
@@ -207,6 +208,182 @@ public class TestUnionMasks {
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return arguments.build();
+    }
+
+    /**
+     * Convenience method for dispatching overlap queries according to the relevant types.
+     * @param mask1 a mask
+     * @param mask2 another mask
+     * @return if the masks overlap
+     */
+    private static boolean isOverlap(Bitmask mask1, Bitmask mask2) {
+        if (mask1 instanceof ImageMask) {
+            if (mask2 instanceof ImageMask) {
+                return ((ImageMask) mask2).isOverlap((ImageMask) mask1);
+            } else if (mask2 instanceof UnionMask) {
+                return ((UnionMask) mask2).isOverlap((ImageMask) mask1);
+            }
+        } else if (mask1 instanceof UnionMask) {
+            if (mask2 instanceof ImageMask) {
+                return ((UnionMask) mask1).isOverlap((ImageMask) mask2);
+            } else if (mask2 instanceof UnionMask) {
+                return ((UnionMask) mask1).isOverlap((UnionMask) mask2);
+            }
+        }
+        throw new IllegalArgumentException();
+    }
+
+    /**
+     * Assert that the given masks overlap.
+     * @param mask1 a mask
+     * @param mask2 another mask
+     */
+    private static void assertOverlap(Bitmask mask1, Bitmask mask2) {
+        Assertions.assertTrue(isOverlap(mask1, mask2));
+        Assertions.assertTrue(isOverlap(mask2, mask1));
+    }
+
+    /**
+     * Assert that the given masks do not overlap.
+     * @param mask1 a mask
+     * @param mask2 another mask
+     */
+    private static void assertNoOverlap(Bitmask mask1, Bitmask mask2) {
+        Assertions.assertFalse(isOverlap(mask1, mask2));
+        Assertions.assertFalse(isOverlap(mask2, mask1));
+    }
+
+    /**
+     * Check that mask overlaps are properly detected.
+     * @param size1 the size of the first mask
+     * @param size2 the size of the second mask
+     * @param dimension the dimension to which the {@code plane} argument applies
+     * @param plane the plane index to set for the given dimension for the second mask
+     */
+    @ParameterizedTest
+    @MethodSource("provideOverlaps")
+    public void testOverlap(Dimension size1, Dimension size2, char dimension, Integer plane) {
+        /* Construct three masks. */
+        final Integer one = 1;
+        final Integer z2 = Character.valueOf('Z').equals(dimension) ? plane : one;
+        final Integer c2 = Character.valueOf('C').equals(dimension) ? plane : one;
+        final Integer t2 = Character.valueOf('T').equals(dimension) ? plane : one;
+        final ImageMask mask1 = constructMask(new Rectangle(10, 10, size1.width, size1.height), 1, 1, 1, ALWAYS_NOTHING);
+        final ImageMask mask2 = constructMask(new Rectangle(15, 15, size2.width, size2.height), z2, c2, t2, ALWAYS_NOTHING);
+        final ImageMask mask3 = constructMask(new Rectangle(0, 0, 50, 50), null, null, null, ALWAYS_NOTHING);
+        final BiPredicate<Integer, Integer> isMasked1 = mask1.getMaskReader(1, 1, 1);
+        final BiPredicate<Integer, Integer> isMasked2 = mask2.getMaskReader(
+                z2 == null ? 1 :z2,
+                c2 == null ? 1 :c2,
+                t2 == null ? 1 :t2);
+        final BiPredicate<Integer, Integer> isMasked3 = mask3.getMaskReader(1, 1, 1);
+        /* Set a bit in each of the masks. */
+        final int index1 = 30;
+        final int index2 = 40;
+        final int index3 = 50;
+        final int bitPos1 = 0;
+        final int bitPos2 = 2;
+        final int bitPos3 = 7;
+        final int bit1 = index1 * 8 + bitPos1;
+        final int y1 = bit1 / mask1.pos.width;
+        final int x1 = bit1 - y1 * mask1.pos.width;
+        final int bit2 = index2 * 8 + bitPos2;
+        final int y2 = bit2 / mask2.pos.width;
+        final int x2 = bit2 - y2 * mask2.pos.width;
+        final int bit3 = index3 * 8 + bitPos3;
+        final int y3 = bit3 / mask3.pos.width;
+        final int x3 = bit3 - y3 * mask3.pos.width;
+        Assertions.assertFalse(isMasked1.test(x1 + mask1.pos.x, y1 + mask1.pos.y));
+        Assertions.assertFalse(isMasked2.test(x2 + mask2.pos.x, y2 + mask2.pos.y));
+        Assertions.assertFalse(isMasked3.test(x3 + mask3.pos.x, y3 + mask3.pos.y));
+        mask1.bitmask[index1] = (byte) (1 << 7 - bitPos1);
+        mask2.bitmask[index2] = (byte) (1 << 7 - bitPos2);
+        mask3.bitmask[index3] = (byte) (1 << 7 - bitPos3);
+        Assertions.assertTrue(isMasked1.test(x1 + mask1.pos.x, y1 + mask1.pos.y));
+        Assertions.assertTrue(isMasked2.test(x2 + mask2.pos.x, y2 + mask2.pos.y));
+        Assertions.assertTrue(isMasked3.test(x3 + mask3.pos.x, y3 + mask3.pos.y));
+        /* Check that the three masks do not overlap. */
+        assertNoOverlap(mask1, mask2);
+        assertNoOverlap(mask1, mask3);
+        /* Calculate "overlap" versions of the second and third masks that overlap with the first. */
+        final boolean isDifferentPlane = Arrays.asList(z2, c2, t2).contains(0);
+        final Rectangle overlapPos2 = new Rectangle(mask2.pos);
+        final Rectangle overlapPos3 = new Rectangle(mask3.pos);
+        overlapPos2.translate(x1 - x2, y1 - y2);
+        overlapPos2.translate(mask1.pos.x - mask2.pos.x, mask1.pos.y - mask2.pos.y);
+        overlapPos3.translate(x1 - x3, y1 - y3);
+        overlapPos3.translate(mask1.pos.x - mask3.pos.x, mask1.pos.y - mask3.pos.y);
+        final ImageMask overlapMask2 = new ImageMask(overlapPos2, mask2.z, mask2.c, mask2.t, mask2.bitmask);
+        final ImageMask overlapMask3 = new ImageMask(overlapPos3, mask3.z, mask3.c, mask3.t, mask3.bitmask);
+        final BiPredicate<Integer, Integer> isMaskedOverlap2 = overlapMask2.getMaskReader(
+                z2 == null ? 1 :z2,
+                c2 == null ? 1 :c2,
+                t2 == null ? 1 :t2);
+        final BiPredicate<Integer, Integer> isMaskedOverlap3 = overlapMask3.getMaskReader(1, 1, 1);
+        Assertions.assertTrue(isMaskedOverlap2.test(x1 + mask1.pos.x, y1 + mask1.pos.y));
+        Assertions.assertTrue(isMaskedOverlap3.test(x1 + mask1.pos.x, y1 + mask1.pos.y));
+        if (isDifferentPlane) {
+            assertNoOverlap(mask1, overlapMask2);
+        } else {
+            assertOverlap(mask1, overlapMask2);
+        }
+        assertOverlap(mask1, overlapMask3);
+        /* Calculate translated versions of the first mask then check for overlaps. */
+        final Bitmask unionMask23 = UnionMask.union(Arrays.asList(overlapMask2, overlapMask3));
+        for (int yOffset = -2; yOffset < 3; yOffset++) {
+            for (int xOffset = -2; xOffset < 3; xOffset++) {
+                final Rectangle overlapPos1 = new Rectangle(mask1.pos);
+                overlapPos1.translate(xOffset, yOffset);
+                final ImageMask overlapMask1 = new ImageMask(overlapPos1, mask1.z, mask1.c, mask1.t, mask1.bitmask);
+                final Bitmask unionMask12 = UnionMask.union(Arrays.asList(overlapMask1, overlapMask2));
+                final Bitmask unionMask13 = UnionMask.union(Arrays.asList(overlapMask1, overlapMask3));
+                if (xOffset == 0 && yOffset == 0) {
+                    /* The first "overlap" mask should overlap with the second (if same plane) and third. */
+                    if (isDifferentPlane) {
+                        assertNoOverlap(overlapMask1, overlapMask2);
+                    } else {
+                        assertOverlap(overlapMask1, overlapMask2);
+                    }
+                    assertOverlap(overlapMask1, overlapMask3);
+                    assertOverlap(overlapMask1, unionMask23);
+                } else {
+                    /* The first "overlap" mask should not overlap with the second or third. */
+                    assertNoOverlap(overlapMask1, overlapMask2);
+                    assertNoOverlap(overlapMask1, overlapMask3);
+                    assertNoOverlap(overlapMask1, unionMask23);
+                }
+                /* The second and third "overlap" masks do overlap even when part of a union mask. */
+                assertOverlap(unionMask12, overlapMask3);
+                assertOverlap(unionMask13, overlapMask2);
+                assertOverlap(unionMask12, unionMask13);
+                assertOverlap(unionMask12, unionMask23);
+                assertOverlap(unionMask13, unionMask23);
+            }
+        }
+    }
+
+    /**
+     * @return mask sizes and planes for {@link #testOverlap(Dimension, Dimension, char, Integer)}
+     */
+    private static Stream<Arguments> provideOverlaps() {
+        final Stream.Builder<Arguments> arguments = Stream.builder();
+        final List<Integer> planes = Arrays.asList(null, 0, 1);
+        for (int width1 = 25; width1 < 45; width1 += 3) {
+            for (int height1 = 25; height1 < 45; height1 += 3) {
+                final Dimension size1 = new Dimension(width1, height1);
+                for (int width2 = 20; width2 < 50; width2 += 7) {
+                    for (int height2 = 20; height2 < 50; height2 += 5) {
+                        final Dimension size2 = new Dimension(width2, height2);
+                        for (char dimension : "ZCT".toCharArray()) {
+                            for (Integer plane : planes) {
+                                arguments.add(Arguments.of(size1, size2, dimension, plane));
                             }
                         }
                     }

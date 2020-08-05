@@ -96,7 +96,7 @@ public class ImageMask implements Bitmask {
      * @param t the optional <em>T</em> plane of the mask
      * @param bitmask the byte array to adopt as the bitmask
      */
-    private ImageMask(Rectangle pos, OptionalInt z, OptionalInt c, OptionalInt t, byte[] bitmask) {
+    ImageMask(Rectangle pos, OptionalInt z, OptionalInt c, OptionalInt t, byte[] bitmask) {
         this.pos = pos;
         this.z = z;
         this.c = c;
