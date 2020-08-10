@@ -60,6 +60,9 @@ In addition to your usual OMERO.server configuration, the microservice's
 `omero.ms.zarr.folder.layout`
 : for directory listings, default `nested` chunks, can be `flattened`; `none` disables directory listings
 
+`omero.ms.zarr.mask.overlap.value`
+: value to set for overlapping region in labeled masks; not set by default, thus disabling overlap support
+
 `omero.ms.zarr.mask-cache.size`
 : mask cache size in megabytes, default 250
 
