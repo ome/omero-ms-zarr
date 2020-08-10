@@ -53,6 +53,7 @@ public class Configuration {
     public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
     public final static String CONF_FOLDER_LAYOUT = "folder.layout";
     public final static String CONF_MASK_CACHE_SIZE = "mask-cache.size";
+    public final static String CONF_MASK_OVERLAP_VALUE = "mask.overlap.value";
     public final static String CONF_NET_PATH_IMAGE = "net.path.image";
     public final static String CONF_NET_PORT = "net.port";
 
@@ -65,6 +66,7 @@ public class Configuration {
     private Boolean foldersNested = true;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
+    private Long maskOverlapValue = null;
 
     /**
      * Convert the given URI path to a regular expression in which {@link #PLACEHOLDER_IMAGE_ID} matches the image ID.
@@ -123,6 +125,7 @@ public class Configuration {
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
         final String folderLayout = configuration.get(CONF_FOLDER_LAYOUT);
         final String maskCacheSize = configuration.get(CONF_MASK_CACHE_SIZE);
+        final String maskOverlapValue = configuration.get(CONF_MASK_OVERLAP_VALUE);
         final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
         final String netPort = configuration.get(CONF_NET_PORT);
 
@@ -208,6 +211,16 @@ public class Configuration {
             }
         }
 
+        if (maskOverlapValue != null) {
+            try {
+                this.maskOverlapValue = Long.parseLong(maskOverlapValue);
+            } catch (NumberFormatException nfe) {
+                final String message = "mask overlap value must be an integer, not " + maskOverlapValue;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
         if (netPath != null) {
             if (netPath.indexOf('\\') == -1) {
                 if (netPath.contains(PLACEHOLDER_IMAGE_ID)) {
@@ -281,6 +294,13 @@ public class Configuration {
      */
     public long getMaskCacheSize() {
         return maskCacheSize;
+    }
+
+    /**
+     * @return the configured mask overlap value ({@code null} for no overlaps)
+     */
+    public Long getMaskOverlapValue() {
+        return maskOverlapValue;
     }
 
     /**
