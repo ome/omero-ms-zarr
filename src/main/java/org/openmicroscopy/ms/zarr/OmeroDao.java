@@ -114,6 +114,15 @@ class OmeroDao {
             ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, imageId).iterate()));
     }
 
+    SortedSet<Long> getRoiIdsWithMaskOfImage(long imageId) {
+        LOGGER.debug("fetch Roi IDs for Image:{} where each Roi has a Mask", imageId);
+        final String hql =
+                "SELECT DISTINCT roi.id FROM Mask " +
+                "WHERE roi.image.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, imageId).iterate()));
+    }
+
     long getMaskCountOfRoi(long roiId) {
         LOGGER.debug("fetch Mask count for Roi:{}", roiId);
         final String hql =

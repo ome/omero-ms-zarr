@@ -735,17 +735,6 @@ public class RequestHandlerForImage implements HttpHandler {
     }
 
     /**
-     * Get the IDs of the ROIs that have masks.
-     * @param imageId the image whose ROIs should be queried
-     * @return the IDs of the ROIs that have masks, may be an empty collection
-     */
-    private Collection<Long> getRoiIdsWithMask(long imageId) {
-        return omeroDao.getRoiIdsOfImage(imageId).stream()
-                .filter(roiId -> omeroDao.getMaskCountOfRoi(roiId) > 0)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Handle a request for the masks of an image directory.
      * @param response the HTTP server response to populate
      * @param parameters the parameters of the request to handle
@@ -755,7 +744,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final long imageId = Long.parseLong(parameters.get(0));
         LOGGER.debug("providing directory listing for Masks of Image:{}", imageId);
         /* gather data from database */
-        final Collection<Long> roiIdsWithMask = getRoiIdsWithMask(imageId);
+        final Collection<Long> roiIdsWithMask = omeroDao.getRoiIdsWithMaskOfImage(imageId);
         final Map<Long, Bitmask> labeledMasks = roiIdsWithMask.isEmpty() ? null : getLabeledMasks(imageId);
         if (roiIdsWithMask.isEmpty()) {
             fail(response, 404, "no image masks for that id");
@@ -1132,7 +1121,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final long imageId = Long.parseLong(parameters.get(0));
         LOGGER.debug("providing .zattrs for Masks of Image:{}", imageId);
         /* gather data */
-        final Collection<Long> roiIdsWithMask = getRoiIdsWithMask(imageId);
+        final Collection<Long> roiIdsWithMask = omeroDao.getRoiIdsWithMaskOfImage(imageId);
         final Map<Long, Bitmask> labeledMasks = roiIdsWithMask.isEmpty() ? null : getLabeledMasks(imageId);
         if (roiIdsWithMask.isEmpty()) {
             fail(response, 404, "no image masks for that id");
@@ -1214,7 +1203,7 @@ public class RequestHandlerForImage implements HttpHandler {
      * overlapping masks with {@link Configuration#CONF_MASK_OVERLAP_VALUE} not set
      */
     private Map<Long, Bitmask> getLabeledMasks(long imageId) {
-        final Collection<Long> roiIds = getRoiIdsWithMask(imageId);
+        final Collection<Long> roiIds = omeroDao.getRoiIdsWithMaskOfImage(imageId);
         switch (roiIds.size()) {
         case 0:
             return null;
@@ -1241,7 +1230,7 @@ public class RequestHandlerForImage implements HttpHandler {
      */
     private Map<Long, Bitmask> getLabeledMasksForCache(long imageId) {
         final List<Long> roiIds = new ArrayList<>();
-        for (final long roiId : getRoiIdsWithMask(imageId)) {
+        for (final long roiId : omeroDao.getRoiIdsWithMaskOfImage(imageId)) {
             roiIds.add(roiId);
         }
         if (roiIds.isEmpty()) {
@@ -1325,7 +1314,7 @@ public class RequestHandlerForImage implements HttpHandler {
             return;
         }
         final SortedMap<Long, Integer> maskColors = new TreeMap<>();
-        for (final long roiId : getRoiIdsWithMask(imageId)) {
+        for (final long roiId : omeroDao.getRoiIdsWithMaskOfImage(imageId)) {
             final Collection<Long> maskIds = omeroDao.getMaskIdsOfRoi(roiId);
             final Integer maskColor = getConsensusColor(maskIds);
             if (maskColor != null) {
