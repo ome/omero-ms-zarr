@@ -1247,56 +1247,56 @@ public class RequestHandlerForImage implements HttpHandler {
             labeledMasks.put(roiId, imageMask);
         }
         if (maskOverlapValue == null) {
-        /* Check that there are no overlaps. */
-        for (final Map.Entry<Long, Bitmask> labeledMask1 : labeledMasks.entrySet()) {
-            final long label1 = labeledMask1.getKey();
-            final Bitmask mask1 = labeledMask1.getValue();
-            if (mask1 instanceof ImageMask) {
-                final ImageMask imageMask1 = (ImageMask) mask1;
-                for (final Map.Entry<Long, Bitmask> labeledMask2 : labeledMasks.entrySet()) {
-                    final long label2 = labeledMask2.getKey();
-                    final Bitmask mask2 = labeledMask2.getValue();
-                    if (label1 < label2) {
-                        if (mask2 instanceof ImageMask) {
-                            final ImageMask imageMask2 = (ImageMask) mask2;
-                            if (imageMask2.isOverlap(imageMask1)) {
-                                return null;
+            /* Check that there are no overlaps. */
+            for (final Map.Entry<Long, Bitmask> labeledMask1 : labeledMasks.entrySet()) {
+                final long label1 = labeledMask1.getKey();
+                final Bitmask mask1 = labeledMask1.getValue();
+                if (mask1 instanceof ImageMask) {
+                    final ImageMask imageMask1 = (ImageMask) mask1;
+                    for (final Map.Entry<Long, Bitmask> labeledMask2 : labeledMasks.entrySet()) {
+                        final long label2 = labeledMask2.getKey();
+                        final Bitmask mask2 = labeledMask2.getValue();
+                        if (label1 < label2) {
+                            if (mask2 instanceof ImageMask) {
+                                final ImageMask imageMask2 = (ImageMask) mask2;
+                                if (imageMask2.isOverlap(imageMask1)) {
+                                    return null;
+                                }
+                            } else if (mask2 instanceof UnionMask) {
+                                final UnionMask unionMask2 = (UnionMask) mask2;
+                                if (unionMask2.isOverlap(imageMask1)) {
+                                    return null;
+                                }
+                            } else {
+                                throw new IllegalStateException();
                             }
-                        } else if (mask2 instanceof UnionMask) {
-                            final UnionMask unionMask2 = (UnionMask) mask2;
-                            if (unionMask2.isOverlap(imageMask1)) {
-                                return null;
-                            }
-                        } else {
-                            throw new IllegalStateException();
                         }
                     }
-                }
-            } else if (mask1 instanceof UnionMask) {
-                final UnionMask unionMask1 = (UnionMask) mask1;
-                for (final Map.Entry<Long, Bitmask> labeledMask2 : labeledMasks.entrySet()) {
-                    final long label2 = labeledMask2.getKey();
-                    final Bitmask mask2 = labeledMask2.getValue();
-                    if (label1 < label2) {
-                        if (mask2 instanceof ImageMask) {
-                            final ImageMask imageMask2 = (ImageMask) mask2;
-                            if (unionMask1.isOverlap(imageMask2)) {
-                                return null;
+                } else if (mask1 instanceof UnionMask) {
+                    final UnionMask unionMask1 = (UnionMask) mask1;
+                    for (final Map.Entry<Long, Bitmask> labeledMask2 : labeledMasks.entrySet()) {
+                        final long label2 = labeledMask2.getKey();
+                        final Bitmask mask2 = labeledMask2.getValue();
+                        if (label1 < label2) {
+                            if (mask2 instanceof ImageMask) {
+                                final ImageMask imageMask2 = (ImageMask) mask2;
+                                if (unionMask1.isOverlap(imageMask2)) {
+                                    return null;
+                                }
+                            } else if (mask2 instanceof UnionMask) {
+                                final UnionMask unionMask2 = (UnionMask) mask2;
+                                if (unionMask1.isOverlap(unionMask2)) {
+                                    return null;
+                                }
+                            } else {
+                                throw new IllegalStateException();
                             }
-                        } else if (mask2 instanceof UnionMask) {
-                            final UnionMask unionMask2 = (UnionMask) mask2;
-                            if (unionMask1.isOverlap(unionMask2)) {
-                                return null;
-                            }
-                        } else {
-                            throw new IllegalStateException();
                         }
                     }
+                } else {
+                    throw new IllegalStateException();
                 }
-            } else {
-                throw new IllegalStateException();
             }
-        }
         }
         return labeledMasks;
     }
