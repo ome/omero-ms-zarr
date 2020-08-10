@@ -87,12 +87,15 @@ public class ZarrBinaryImageTest extends ZarrEndpointsImageTestBase {
     @MethodSource("provideGroupDetails")
     public void testZarrChunks(int resolution, String path, Double scale) throws DataFormatException, IOException {
         final JsonObject response = getResponseAsJson(0, path, ".zarray");
+        final JsonArray shape = response.getJsonArray("shape");
+        final int imageSizeX = shape.getInteger(4);
+        final int imageSizeY = shape.getInteger(3);
+        pixelBuffer.setResolutionLevel(resolution);
+        Assertions.assertEquals(pixelBuffer.getSizeX(), imageSizeX);
+        Assertions.assertEquals(pixelBuffer.getSizeY(), imageSizeY);
         final JsonArray chunks = response.getJsonArray("chunks");
         final int chunkSizeX = chunks.getInteger(4);
         final int chunkSizeY = chunks.getInteger(3);
-        pixelBuffer.setResolutionLevel(resolution);
-        final int imageSizeX = pixelBuffer.getSizeX();
-        final int imageSizeY = pixelBuffer.getSizeY();
         int chunkIndexY = 0;
         for (int y = 0; y < imageSizeY; y += chunkSizeY) {
             int chunkIndexX = 0;
