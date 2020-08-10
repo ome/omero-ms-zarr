@@ -305,7 +305,6 @@ public class RequestHandlerForImage implements HttpHandler {
      * @return the cache
      */
     private LoadingCache<Long, Optional<Map<Long, Bitmask>>> buildLabeledMaskCache(long maximumWeight) {
-        LOGGER.info("weight is " + maximumWeight);
         return CacheBuilder.newBuilder()
                 .weigher(new Weigher<Long, Optional<Map<Long, Bitmask>>>() {
                     @Override
