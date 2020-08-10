@@ -75,6 +75,8 @@ public abstract class ZarrEndpointsTestBase {
     protected static final String MEDIA_TYPE_BINARY = "application/octet-stream";
     protected static final String MEDIA_TYPE_JSON = "application/json; charset=utf-8";
 
+    protected static final long MASK_OVERLAP_VALUE = -1;
+
     protected static final String URI_PATH_PREFIX = "test";
 
     protected PixelBuffer pixelBuffer = new PixelBufferFake();
@@ -177,7 +179,9 @@ public abstract class ZarrEndpointsTestBase {
         Mockito.when(httpRequest.method()).thenReturn(HttpMethod.GET);
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
-        final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
+        final Map<String, String> settings = ImmutableMap.of(
+                Configuration.CONF_MASK_OVERLAP_VALUE, Long.toString(MASK_OVERLAP_VALUE),
+                Configuration.CONF_NET_PATH_IMAGE, URI);
         final Configuration configuration = new Configuration(settings);
         final OmeroDao dao = daoSetup();
         final PixelBufferCache cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
