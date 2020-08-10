@@ -1224,13 +1224,13 @@ public class RequestHandlerForImage implements HttpHandler {
         case 1:
             return getLabeledMasksForCache(imageId);
         default:
-        try {
-            final Optional<Map<Long, Bitmask>> labeledMasks = labeledMaskCache.get(imageId);
-            return labeledMasks.isPresent() ? labeledMasks.get() : null;
-        } catch (ExecutionException ee) {
-            LOGGER.warn("failed to get labeled masks for image {}", imageId, ee.getCause());
-            return null;
-        }
+            try {
+                final Optional<Map<Long, Bitmask>> labeledMasks = labeledMaskCache.get(imageId);
+                return labeledMasks.isPresent() ? labeledMasks.get() : null;
+            } catch (ExecutionException ee) {
+                LOGGER.warn("failed to get labeled masks for image {}", imageId, ee.getCause());
+                return null;
+            }
         }
     }
 
