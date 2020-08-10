@@ -121,6 +121,8 @@ public class ZarrBinaryMaskTest extends ZarrEndpointsTestBase {
         Mockito.when(dao.getMaskIdsOfRoi(Mockito.eq(roi1.getId()))).thenReturn(ImmutableSortedSet.of(mask1.getId(), mask2.getId()));
         Mockito.when(dao.getMaskIdsOfRoi(Mockito.eq(roi2.getId()))).thenReturn(ImmutableSortedSet.of(mask3.getId()));
         Mockito.when(dao.getRoiIdsOfImage(Mockito.eq(image.getId()))).thenReturn(ImmutableSortedSet.of(roi1.getId(), roi2.getId()));
+        Mockito.when(dao.getRoiIdsWithMaskOfImage(Mockito.eq(image.getId())))
+        .thenReturn(ImmutableSortedSet.of(roi1.getId(), roi2.getId()));
         return dao;
     }
 
