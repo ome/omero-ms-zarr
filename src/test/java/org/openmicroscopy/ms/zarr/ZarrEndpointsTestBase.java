@@ -55,10 +55,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 
-import org.hibernate.Query;
-import org.hibernate.SessionFactory;
-import org.hibernate.classic.Session;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
@@ -80,15 +76,6 @@ public abstract class ZarrEndpointsTestBase {
     protected static final String MEDIA_TYPE_JSON = "application/json; charset=utf-8";
 
     protected static final String URI_PATH_PREFIX = "test";
-
-    @Mock
-    private Query query;
-
-    @Mock
-    private Session sessionMock;
-
-    @Mock
-    private SessionFactory sessionFactoryMock;
 
     protected PixelBuffer pixelBuffer = new PixelBufferFake();
 
@@ -112,7 +99,7 @@ public abstract class ZarrEndpointsTestBase {
      * Set up a mock pixels object from which to source OMERO metadata.
      * @return a mock pixels object
      */
-    private Pixels constructMockPixels() {
+    protected Pixels constructMockPixels() {
         /* Create skeleton objects. */
         final Channel channel1 = new Channel(1L, true);
         final Channel channel2 = new Channel(2L, true);
@@ -186,23 +173,23 @@ public abstract class ZarrEndpointsTestBase {
     @BeforeEach
     protected void mockSetup() throws IOException {
         MockitoAnnotations.initMocks(this);
-        final Pixels pixels = constructMockPixels();
-        Mockito.when(query.uniqueResult()).thenReturn(pixels);
-        Mockito.when(query.setParameter(Mockito.eq(0), Mockito.anyLong())).thenReturn(query);
-        Mockito.when(sessionMock.createQuery(Mockito.anyString())).thenReturn(query);
-        Mockito.when(sessionFactoryMock.openSession()).thenReturn(sessionMock);
         Mockito.when(pixelsServiceMock.getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false))).thenReturn(pixelBuffer);
         Mockito.when(httpRequest.method()).thenReturn(HttpMethod.GET);
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
         final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
         final Configuration configuration = new Configuration(settings);
-        final OmeroDao dao = new OmeroDao(sessionFactoryMock);
+        final OmeroDao dao = daoSetup();
         final PixelBufferCache cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
         final HttpHandler handler = new RequestHandlerForImage(configuration, pixelsServiceMock, cache, dao);
         router = new RouterFake();
         handler.handleFor(router);
     }
+
+    /**
+     * @return the DAO to be used by {@link #mockSetup()}
+     */
+    protected abstract OmeroDao daoSetup();
 
     /**
      * Construct an endpoint URI for the given query arguments.

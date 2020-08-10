@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Check that the binary data served from the microservice endpoints has the expected pixel values.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class ZarrBinaryDataTest extends ZarrEndpointsTestBase {
+public class ZarrBinaryImageTest extends ZarrEndpointsImageTestBase {
 
     boolean isSomeChunkFitsWithin;
     boolean isSomeChunkOverlapsRight;
