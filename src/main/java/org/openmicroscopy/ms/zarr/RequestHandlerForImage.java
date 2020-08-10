@@ -1214,12 +1214,23 @@ public class RequestHandlerForImage implements HttpHandler {
      * overlapping masks with {@link Configuration#CONF_MASK_OVERLAP_VALUE} not set
      */
     private Map<Long, Bitmask> getLabeledMasks(long imageId) {
+        final List<Long> roiIds = new ArrayList<>();
+        for (final long roiId : getRoiIdsWithMask(imageId)) {
+            roiIds.add(roiId);
+        }
+        switch (roiIds.size()) {
+        case 0:
+            return null;
+        case 1:
+            return getLabeledMasksForCache(imageId);
+        default:
         try {
             final Optional<Map<Long, Bitmask>> labeledMasks = labeledMaskCache.get(imageId);
             return labeledMasks.isPresent() ? labeledMasks.get() : null;
         } catch (ExecutionException ee) {
             LOGGER.warn("failed to get labeled masks for image {}", imageId, ee.getCause());
             return null;
+        }
         }
     }
 
