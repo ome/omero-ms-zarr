@@ -272,6 +272,7 @@ public class RequestHandlerForImage implements HttpHandler {
     private final int chunkSizeMin;
     private final int deflateLevel;
     private final Boolean foldersNested;
+    private final Long maskOverlapValue;
 
     private final Pattern patternForImageDir;
     private final Pattern patternForImageGroupDir;
@@ -349,6 +350,7 @@ public class RequestHandlerForImage implements HttpHandler {
         this.deflateLevel = configuration.getDeflateLevel();
         this.foldersNested = configuration.getFoldersNested();
         this.labeledMaskCache = buildLabeledMaskCache(configuration.getMaskCacheSize());
+        this.maskOverlapValue = configuration.getMaskOverlapValue();
 
         final String path = configuration.getPathRegex();
 
@@ -1206,9 +1208,10 @@ public class RequestHandlerForImage implements HttpHandler {
     }
 
     /**
-     * If there are no overlaps among the masks then provide a labeled mask for the given image.
+     * Provide a labeled mask for the given image. May be refused if masks overlap.
      * @param imageId an image ID
-     * @return a labeled mask, or {@code null} if there are no masks or overlapping masks
+     * @return a labeled mask, or {@code null} if there are no masks or
+     * overlapping masks with {@link Configuration#CONF_MASK_OVERLAP_VALUE} not set
      */
     private Map<Long, Bitmask> getLabeledMasks(long imageId) {
         try {
@@ -1221,11 +1224,12 @@ public class RequestHandlerForImage implements HttpHandler {
     }
 
     /**
-     * If there are no overlaps among the masks then construct a labeled mask for the given image.
+     * Provide a labeled mask for the given image. May be refused if masks overlap.
      * Intended to be used <em>only</em> by {@link #labeledMaskCache} because
      * other callers should benefit from the cache by using {@link #getLabeledMasks(long)}.
      * @param imageId an image ID
-     * @return a labeled mask, or {@code null} if there are no masks or overlapping masks
+     * @return a labeled mask, or {@code null} if there are no masks or
+     * overlapping masks with {@link Configuration#CONF_MASK_OVERLAP_VALUE} not set
      */
     private Map<Long, Bitmask> getLabeledMasksForCache(long imageId) {
         final List<Long> roiIds = new ArrayList<>();
@@ -1242,6 +1246,7 @@ public class RequestHandlerForImage implements HttpHandler {
                     .map(omeroDao::getMask).map(ImageMask::new).collect(Collectors.toList()));
             labeledMasks.put(roiId, imageMask);
         }
+        if (maskOverlapValue == null) {
         /* Check that there are no overlaps. */
         for (final Map.Entry<Long, Bitmask> labeledMask1 : labeledMasks.entrySet()) {
             final long label1 = labeledMask1.getKey();
@@ -1291,6 +1296,7 @@ public class RequestHandlerForImage implements HttpHandler {
             } else {
                 throw new IllegalStateException();
             }
+        }
         }
         return labeledMasks;
     }
@@ -1590,14 +1596,25 @@ public class RequestHandlerForImage implements HttpHandler {
                 int tilePosition = 0;
                 for (int yCurr = y; yCurr < y + h; yCurr++) {
                     for (int xCurr = x; xCurr < x + w; xCurr++) {
+                        Long labelCurrent = null;
                         for (final Map.Entry<Long, BiPredicate<Integer, Integer>> imageMaskWithLabel :
                             imageMasksByLabel.entrySet()) {
                             final long label = imageMaskWithLabel.getKey();
                             final BiPredicate<Integer, Integer> isMasked = imageMaskWithLabel.getValue();
                             if (isMasked.test(xCurr, yCurr)) {
-                                tile.putLong(tilePosition, label);
-                                break;
+                                if (maskOverlapValue == null) {
+                                    labelCurrent = label;
+                                    break;
+                                } if (labelCurrent == null) {
+                                    labelCurrent = label;
+                                } else {
+                                    labelCurrent = maskOverlapValue;
+                                    break;
+                                }
                             }
+                        }
+                        if (labelCurrent != null) {
+                            tile.putLong(tilePosition, labelCurrent);
                         }
                         tilePosition += Long.BYTES;
                     }
