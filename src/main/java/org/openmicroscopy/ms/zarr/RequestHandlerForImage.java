@@ -272,6 +272,8 @@ public class RequestHandlerForImage implements HttpHandler {
     private final int chunkSizeMin;
     private final int deflateLevel;
     private final Boolean foldersNested;
+    private final boolean isSplitMasksEnabled;
+    private final Integer maskOverlapColor;
     private final Long maskOverlapValue;
 
     private final Pattern patternForImageDir;
@@ -348,7 +350,9 @@ public class RequestHandlerForImage implements HttpHandler {
         this.chunkSizeMin = configuration.getMinimumChunkSize();
         this.deflateLevel = configuration.getDeflateLevel();
         this.foldersNested = configuration.getFoldersNested();
+        this.isSplitMasksEnabled = configuration.isSplitMasksEnabled();
         this.labeledMaskCache = buildLabeledMaskCache(configuration.getMaskCacheSize());
+        this.maskOverlapColor = configuration.getMaskOverlapColor();
         this.maskOverlapValue = configuration.getMaskOverlapValue();
 
         final String path = configuration.getPathRegex();
@@ -419,15 +423,19 @@ public class RequestHandlerForImage implements HttpHandler {
             handleFor(router, patternForImageDir, this::returnImageDirectory);
             if (foldersNested) {
                 handleFor(router, patternForImageGroupDir, this::returnImageGroupDirectoryNested);
-                handleFor(router, patternForMaskDir, this::returnMaskDirectoryNested);
                 handleFor(router, patternForMaskLabeledDir, this::returnMaskLabeledDirectoryNested);
                 handleFor(router, patternForImageChunkDir, this::returnImageChunkDirectory);
-                handleFor(router, patternForMaskChunkDir, this::returnMaskChunkDirectory);
                 handleFor(router, patternForMaskLabeledChunkDir, this::returnMaskLabeledChunkDirectory);
+                if (isSplitMasksEnabled) {
+                    handleFor(router, patternForMaskDir, this::returnMaskDirectoryNested);
+                    handleFor(router, patternForMaskChunkDir, this::returnMaskChunkDirectory);
+                }
             } else {
                 handleFor(router, patternForImageGroupDir, this::returnImageGroupDirectoryFlattened);
-                handleFor(router, patternForMaskDir, this::returnMaskDirectoryFlattened);
                 handleFor(router, patternForMaskLabeledDir, this::returnMaskLabeledDirectoryFlattened);
+                if (isSplitMasksEnabled) {
+                    handleFor(router, patternForMaskDir, this::returnMaskDirectoryFlattened);
+                }
             }
             handleFor(router, patternForImageMasksDir, this::returnImageMasksDirectory);
         }
@@ -435,14 +443,16 @@ public class RequestHandlerForImage implements HttpHandler {
         handleFor(router, patternForImageMasksGroup, this::returnGroup);
         handleFor(router, patternForImageAttrs, this::returnImageAttrs);
         handleFor(router, patternForImageMasksAttrs, this::returnImageMasksAttrs);
-        handleFor(router, patternForMaskAttrs, this::returnMaskAttrs);
         handleFor(router, patternForMaskLabeledAttrs, this::returnMaskLabeledAttrs);
         handleFor(router, patternForImageArray, this::returnImageArray);
-        handleFor(router, patternForMaskArray, this::returnMaskArray);
         handleFor(router, patternForMaskLabeledArray, this::returnMaskLabeledArray);
         handleFor(router, patternForImageChunk, this::returnImageChunk);
-        handleFor(router, patternForMaskChunk, this::returnMaskChunk);
         handleFor(router, patternForMaskLabeledChunk, this::returnMaskLabeledChunk);
+        if (isSplitMasksEnabled) {
+            handleFor(router, patternForMaskAttrs, this::returnMaskAttrs);
+            handleFor(router, patternForMaskArray, this::returnMaskArray);
+            handleFor(router, patternForMaskChunk, this::returnMaskChunk);
+        }
     }
 
     /**
@@ -755,8 +765,10 @@ public class RequestHandlerForImage implements HttpHandler {
         if (labeledMasks != null) {
             contents.add("labeled/");
         }
-        for (long roiId : roiIdsWithMask) {
-            contents.add(Long.toString(roiId) + '/');
+        if (isSplitMasksEnabled) {
+            for (long roiId : roiIdsWithMask) {
+                contents.add(Long.toString(roiId) + '/');
+            }
         }
         respondWithDirectory(response, "Masks of Image #" + imageId, contents.build());
     }
@@ -1130,8 +1142,10 @@ public class RequestHandlerForImage implements HttpHandler {
         if (labeledMasks != null) {
             masks.add("labeled");
         }
-        for (final long roiId : roiIdsWithMask) {
-            masks.add(Long.toString(roiId));
+        if (isSplitMasksEnabled) {
+            for (final long roiId : roiIdsWithMask) {
+                masks.add(Long.toString(roiId));
+            }
         }
         /* package data for client */
         final Map<String, Object> result = new HashMap<>();
@@ -1320,6 +1334,9 @@ public class RequestHandlerForImage implements HttpHandler {
                 maskColors.put(roiId, maskColor);
             }
         }
+        if (maskOverlapColor != null && maskOverlapValue != null) {
+            maskColors.put(maskOverlapValue, maskOverlapColor);
+        }
         /* package data for client */
         final Map<String, Integer> color = maskColors.entrySet().stream()
                 .collect(Collectors.toMap(entry -> Long.toString(entry.getKey()), Map.Entry::getValue,
@@ -1466,7 +1483,7 @@ public class RequestHandlerForImage implements HttpHandler {
         result.put("shape", ImmutableList.of(shape.tSize, shape.cSize, shape.zSize, shape.ySize, shape.xSize));
         result.put("chunks", ImmutableList.of(1, 1, shape.zTile, shape.yTile, shape.xTile));
         result.put("fill_value", false);
-        result.put("dtype", ">u8");
+        result.put("dtype", ">i8");
         result.put("filters", null);
         result.put("compressor", compressor);
         respondWithJson(response, new JsonObject(result));
