@@ -53,6 +53,8 @@ public class Configuration {
     public final static String CONF_COMPRESS_ZLIB_LEVEL = "compress.zlib.level";
     public final static String CONF_FOLDER_LAYOUT = "folder.layout";
     public final static String CONF_MASK_CACHE_SIZE = "mask-cache.size";
+    public final static String CONF_MASK_SPLIT_ENABLE = "mask.split.enable";
+    public final static String CONF_MASK_OVERLAP_COLOR = "mask.overlap.color";
     public final static String CONF_MASK_OVERLAP_VALUE = "mask.overlap.value";
     public final static String CONF_NET_PATH_IMAGE = "net.path.image";
     public final static String CONF_NET_PORT = "net.port";
@@ -66,6 +68,8 @@ public class Configuration {
     private Boolean foldersNested = true;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
+    private boolean maskSplitEnable = true;
+    private Integer maskOverlapColor = null;
     private Long maskOverlapValue = null;
 
     /**
@@ -125,6 +129,8 @@ public class Configuration {
         final String zlibLevel = configuration.get(CONF_COMPRESS_ZLIB_LEVEL);
         final String folderLayout = configuration.get(CONF_FOLDER_LAYOUT);
         final String maskCacheSize = configuration.get(CONF_MASK_CACHE_SIZE);
+        final String maskSplitEnable = configuration.get(CONF_MASK_SPLIT_ENABLE);
+        final String maskOverlapColor = configuration.get(CONF_MASK_OVERLAP_COLOR);
         final String maskOverlapValue = configuration.get(CONF_MASK_OVERLAP_VALUE);
         final String netPath = configuration.get(CONF_NET_PATH_IMAGE);
         final String netPort = configuration.get(CONF_NET_PORT);
@@ -211,13 +217,36 @@ public class Configuration {
             }
         }
 
+        if (maskSplitEnable != null) {
+            this.maskSplitEnable = Boolean.parseBoolean(maskSplitEnable);
+        }
+
+        if (maskOverlapColor != null) {
+            try {
+                this.maskOverlapColor = Integer.parseInt(maskOverlapColor);
+            } catch (NumberFormatException nfe) {
+                final String message = "mask overlap color must be an integer, not " + maskOverlapColor;
+                LOGGER.error(message);
+                throw new IllegalArgumentException(message);
+            }
+        }
+
         if (maskOverlapValue != null) {
             try {
                 this.maskOverlapValue = Long.parseLong(maskOverlapValue);
             } catch (NumberFormatException nfe) {
-                final String message = "mask overlap value must be an integer, not " + maskOverlapValue;
-                LOGGER.error(message);
-                throw new IllegalArgumentException(message);
+                switch (maskOverlapValue.toLowerCase()) {
+                case "highest":
+                    this.maskOverlapValue = Long.MAX_VALUE;
+                    break;
+                case "lowest":
+                    this.maskOverlapValue = Long.MIN_VALUE;
+                    break;
+                default:
+                    final String message = "mask overlap value must be an integer or HIGHEST or LOWEST, not " + maskOverlapValue;
+                    LOGGER.error(message);
+                    throw new IllegalArgumentException(message);
+                }
             }
         }
 
@@ -294,6 +323,20 @@ public class Configuration {
      */
     public long getMaskCacheSize() {
         return maskCacheSize;
+    }
+
+    /**
+     * @return if split masks are enabled
+     */
+    public boolean isSplitMasksEnabled() {
+        return maskSplitEnable;
+    }
+
+    /**
+     * @return the configured mask overlap color ({@code null} for no color)
+     */
+    public Integer getMaskOverlapColor() {
+        return maskOverlapColor;
     }
 
     /**
