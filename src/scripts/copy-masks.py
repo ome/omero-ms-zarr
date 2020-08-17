@@ -25,13 +25,25 @@ from omero.model import ImageI, MaskI, RoiI
 from omero.rtypes import rstring
 from omero.sys import ParametersI
 
-image_id_src = 6001240
-image_id_dst = 5851
+import argparse
 
-idr = BlitzGateway(
-    "public", "public", host="idr.openmicroscopy.org", secure=True
-)
-local = BlitzGateway("user-1", "ome", host="localhost", secure=True)
+parser = argparse.ArgumentParser(
+    description="copy masks from an image on one server to another")
+parser.add_argument("--from-host", default="idr.openmicroscopy.org")
+parser.add_argument("--from-user", default="public")
+parser.add_argument("--from-pass", default="public")
+parser.add_argument("--to-host", default="localhost")
+parser.add_argument("--to-user", default="root")
+parser.add_argument("--to-pass", default="omero")
+parser.add_argument("source_image", type=int, help="input image")
+parser.add_argument("target_image", type=int, help="output image")
+ns = parser.parse_args()
+
+image_id_src = ns.source_image
+image_id_dst = ns.target_image
+
+idr = BlitzGateway(ns.from_user, ns.from_pass, host=ns.from_host, secure=True)
+local = BlitzGateway(ns.to_user, ns.to_pass, host=ns.to_host, secure=True)
 
 idr.connect()
 local.connect()
