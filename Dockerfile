@@ -3,8 +3,9 @@ FROM library/gradle:6.3.0-jre14 as build
 
 WORKDIR /omero-ms-zarr
 COPY LICENSE README.md build.gradle settings.gradle /omero-ms-zarr/
+RUN gradle build --no-daemon || return 0 # Cache dependencies
 COPY src /omero-ms-zarr/src/
-RUN gradle build -x test
+RUN gradle build --no-daemon -x test -x javadoc
 
 RUN cd build/distributions && \
     unzip omero-ms-zarr-shadow-*.zip && \
