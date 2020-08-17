@@ -28,7 +28,8 @@ from omero.sys import ParametersI
 import argparse
 
 parser = argparse.ArgumentParser(
-    description="copy masks from an image on one server to another")
+    description="copy masks from an image on one server to another"
+)
 parser.add_argument("--from-host", default="idr.openmicroscopy.org")
 parser.add_argument("--from-user", default="public")
 parser.add_argument("--from-pass", default="public")
