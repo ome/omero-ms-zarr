@@ -65,12 +65,12 @@ public class Configuration {
     private List<Character> chunkSizeAdjust = ImmutableList.of('X', 'Y', 'Z');
     private int chunkSizeMin = 0x100000;
     private int zlibLevel = 6;
-    private Boolean foldersNested = true;
+    private Boolean foldersNested = false;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
-    private boolean maskSplitEnable = true;
+    private boolean maskSplitEnable = false;
     private Integer maskOverlapColor = null;
-    private Long maskOverlapValue = null;
+    private Long maskOverlapValue = Long.MAX_VALUE;
 
     /**
      * Convert the given URI path to a regular expression in which {@link #PLACEHOLDER_IMAGE_ID} matches the image ID.

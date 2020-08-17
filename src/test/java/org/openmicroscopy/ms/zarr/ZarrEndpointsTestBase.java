@@ -181,6 +181,7 @@ public abstract class ZarrEndpointsTestBase {
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
         final Map<String, String> settings = ImmutableMap.of(
                 Configuration.CONF_MASK_OVERLAP_VALUE, Long.toString(MASK_OVERLAP_VALUE),
+                Configuration.CONF_MASK_SPLIT_ENABLE, Boolean.toString(true), // Non-default to enable tests
                 Configuration.CONF_NET_PATH_IMAGE, URI);
         final Configuration configuration = new Configuration(settings);
         final OmeroDao dao = daoSetup();
