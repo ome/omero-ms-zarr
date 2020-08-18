@@ -95,6 +95,8 @@ public class RequestHandlerForImage implements HttpHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandlerForImage.class);
 
+    private static final String DEFAULT_LABEL_NAME = "0";  // See omero-cli-zarr
+
     /**
      * Contains the dimensionality of an image.
      * @author m.t.b.carroll@dundee.ac.uk
@@ -763,7 +765,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final ImmutableList.Builder<String> contents = ImmutableList.builder();
         contents.add(".zattrs");
         if (labeledMasks != null) {
-            contents.add("labeled/");
+            contents.add(DEFAULT_LABEL_NAME);
         }
         if (isSplitMasksEnabled) {
             for (long roiId : roiIdsWithMask) {
@@ -1140,7 +1142,7 @@ public class RequestHandlerForImage implements HttpHandler {
         }
         final List<String> masks = new ArrayList<>(roiIdsWithMask.size() + 1);
         if (labeledMasks != null) {
-            masks.add("labeled");
+            masks.add(DEFAULT_LABEL_NAME);
         }
         if (isSplitMasksEnabled) {
             for (final long roiId : roiIdsWithMask) {
