@@ -21,8 +21,14 @@ package org.openmicroscopy.ms.zarr;
 
 import ome.io.nio.PixelsService;
 import ome.model.core.Pixels;
+import ome.model.roi.Mask;
+import ome.model.roi.Roi;
 
+import java.util.Iterator;
+import java.util.SortedSet;
 import java.util.function.Function;
+
+import com.google.common.collect.ImmutableSortedSet;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -88,5 +94,90 @@ class OmeroDao {
                 "WHERE i.id = ?";
         return withSession(session ->
             (Pixels) session.createQuery(hql).setParameter(0, imageId).uniqueResult());
+    }
+
+    /**
+     * @param imageId the ID of an image
+     * @return how many Rois the image has
+     */
+    long getRoiCountOfImage(long imageId) {
+        LOGGER.debug("fetch Roi count for Image:{}", imageId);
+        final String hql =
+                "SELECT COUNT(id) FROM Roi " +
+                "WHERE image.id = ?";
+        return withSession(session ->
+            (Long) session.createQuery(hql).setParameter(0, imageId).uniqueResult());
+    }
+
+    /**
+     * @param imageId the ID of an image
+     * @return the IDs of the image's Rois
+     */
+    SortedSet<Long> getRoiIdsOfImage(long imageId) {
+        LOGGER.debug("fetch Roi IDs for Image:{}", imageId);
+        final String hql =
+                "SELECT id FROM Roi " +
+                "WHERE image.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, imageId).iterate()));
+    }
+
+    /**
+     * @param imageId the ID of an image
+     * @return the IDs of the image's Rois, limited to those that have a Mask
+     */
+    SortedSet<Long> getRoiIdsWithMaskOfImage(long imageId) {
+        LOGGER.debug("fetch Roi IDs for Image:{} where each Roi has a Mask", imageId);
+        final String hql =
+                "SELECT DISTINCT roi.id FROM Mask " +
+                "WHERE roi.image.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, imageId).iterate()));
+    }
+
+    /**
+     * @param roiId the ID of a Roi
+     * @return how many masks the Roi has
+     */
+    long getMaskCountOfRoi(long roiId) {
+        LOGGER.debug("fetch Mask count for Roi:{}", roiId);
+        final String hql =
+                "SELECT COUNT(id) FROM Mask " +
+                "WHERE roi.id = ?";
+        return withSession(session ->
+            (Long) session.createQuery(hql).setParameter(0, roiId).uniqueResult());
+    }
+
+    /**
+     * @param roiId the ID of a Roi
+     * @return the IDs of the Roi's Masks
+     */
+    SortedSet<Long> getMaskIdsOfRoi(long roiId) {
+        LOGGER.debug("fetch Mask IDs for Roi:{}", roiId);
+        final String hql =
+                "SELECT id FROM Mask " +
+                "WHERE roi.id = ?";
+        return withSession(session ->
+            ImmutableSortedSet.copyOf((Iterator<Long>) session.createQuery(hql).setParameter(0, roiId).iterate()));
+    }
+
+    /**
+     * @param roiId the ID of a Roi
+     * @return the Roi
+     */
+    Roi getRoi(long roiId) {
+        LOGGER.debug("fetch Roi:{}", roiId);
+        return withSession(session ->
+            (Roi) session.get(Roi.class, roiId));
+    }
+
+    /**
+     * @param maskId the ID of a Mask
+     * @return the Mask
+     */
+    Mask getMask(long maskId) {
+        LOGGER.debug("fetch Mask:{}", maskId);
+        return withSession(session ->
+            (Mask) session.get(Mask.class, maskId));
     }
 }

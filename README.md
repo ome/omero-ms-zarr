@@ -58,7 +58,19 @@ In addition to your usual OMERO.server configuration, the microservice's
 : zlib compression level for chunks, default 6
 
 `omero.ms.zarr.folder.layout`
-: for directory listings, default `nested` chunks, can be `flattened`; `none` disables directory listings
+: for directory listings, default `flattened` chunks, can be `nested`; `none` disables directory listings
+
+`omero.ms.zarr.mask.split.enable`
+: if masks split by ROI should be offered; default is `false`, can be set to `true`
+
+`omero.ms.zarr.mask.overlap.color`
+: color to use for overlapping region in labeled masks, as a signed integer as in the OME Model; not set by default
+
+`omero.ms.zarr.mask.overlap.value`
+: value to set for overlapping region in labeled masks, as a signed integer or "LOWEST" or "HIGHEST" (the default); setting to null disables overlap support
+
+`omero.ms.zarr.mask-cache.size`
+: mask cache size in megabytes, default 250
 
 `omero.ms.zarr.net.path.image`
 : URI template path for getting image data, default `/image/{image}.zarr/` where `{image}` signifies the image ID and is mandatory

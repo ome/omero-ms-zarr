@@ -44,7 +44,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Check that the metadata served from the microservice endpoints are of the expected form.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class ZarrMetadataTest extends ZarrEndpointsTestBase {
+public class ZarrMetadataTest extends ZarrEndpointsImageTestBase {
 
     private final List<Dimension> resolutionSizes = new ArrayList<>();
 

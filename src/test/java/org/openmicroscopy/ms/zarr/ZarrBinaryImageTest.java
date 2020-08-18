@@ -21,9 +21,7 @@ package org.openmicroscopy.ms.zarr;
 
 import java.io.IOException;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
@@ -37,28 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Check that the binary data served from the microservice endpoints has the expected pixel values.
  * @author m.t.b.carroll@dundee.ac.uk
  */
-public class ZarrBinaryDataTest extends ZarrEndpointsTestBase {
-
-    /**
-     * Uncompress the given byte array.
-     * @param compressed a byte array
-     * @return the uncompressed bytes
-     * @throws DataFormatException unexpected
-     */
-    private static byte[] uncompress(byte[] compressed) throws DataFormatException {
-        final Inflater inflater = new Inflater();
-        inflater.setInput(compressed);
-        final Buffer uncompressed = Buffer.factory.buffer(2 * compressed.length);
-        final byte[] batch = new byte[8192];
-        int batchSize;
-        do {
-            batchSize = inflater.inflate(batch);
-            uncompressed.appendBytes(batch, 0, batchSize);
-        } while (batchSize > 0);
-        Assertions.assertFalse(inflater.needsDictionary());
-        inflater.end();
-        return uncompressed.getBytes();
-    }
+public class ZarrBinaryImageTest extends ZarrEndpointsImageTestBase {
 
     boolean isSomeChunkFitsWithin;
     boolean isSomeChunkOverlapsRight;
@@ -110,12 +87,15 @@ public class ZarrBinaryDataTest extends ZarrEndpointsTestBase {
     @MethodSource("provideGroupDetails")
     public void testZarrChunks(int resolution, String path, Double scale) throws DataFormatException, IOException {
         final JsonObject response = getResponseAsJson(0, path, ".zarray");
+        final JsonArray shape = response.getJsonArray("shape");
+        final int imageSizeX = shape.getInteger(4);
+        final int imageSizeY = shape.getInteger(3);
+        pixelBuffer.setResolutionLevel(resolution);
+        Assertions.assertEquals(pixelBuffer.getSizeX(), imageSizeX);
+        Assertions.assertEquals(pixelBuffer.getSizeY(), imageSizeY);
         final JsonArray chunks = response.getJsonArray("chunks");
         final int chunkSizeX = chunks.getInteger(4);
         final int chunkSizeY = chunks.getInteger(3);
-        pixelBuffer.setResolutionLevel(resolution);
-        final int imageSizeX = pixelBuffer.getSizeX();
-        final int imageSizeY = pixelBuffer.getSizeY();
         int chunkIndexY = 0;
         for (int y = 0; y < imageSizeY; y += chunkSizeY) {
             int chunkIndexX = 0;

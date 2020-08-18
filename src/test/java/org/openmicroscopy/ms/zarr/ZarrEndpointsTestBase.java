@@ -41,6 +41,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -52,10 +54,6 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-
-import org.hibernate.Query;
-import org.hibernate.SessionFactory;
-import org.hibernate.classic.Session;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,16 +75,9 @@ public abstract class ZarrEndpointsTestBase {
     protected static final String MEDIA_TYPE_BINARY = "application/octet-stream";
     protected static final String MEDIA_TYPE_JSON = "application/json; charset=utf-8";
 
+    protected static final long MASK_OVERLAP_VALUE = -1;
+
     protected static final String URI_PATH_PREFIX = "test";
-
-    @Mock
-    private Query query;
-
-    @Mock
-    private Session sessionMock;
-
-    @Mock
-    private SessionFactory sessionFactoryMock;
 
     protected PixelBuffer pixelBuffer = new PixelBufferFake();
 
@@ -110,7 +101,7 @@ public abstract class ZarrEndpointsTestBase {
      * Set up a mock pixels object from which to source OMERO metadata.
      * @return a mock pixels object
      */
-    private Pixels constructMockPixels() {
+    protected Pixels constructMockPixels() {
         /* Create skeleton objects. */
         final Channel channel1 = new Channel(1L, true);
         final Channel channel2 = new Channel(2L, true);
@@ -184,23 +175,26 @@ public abstract class ZarrEndpointsTestBase {
     @BeforeEach
     protected void mockSetup() throws IOException {
         MockitoAnnotations.initMocks(this);
-        final Pixels pixels = constructMockPixels();
-        Mockito.when(query.uniqueResult()).thenReturn(pixels);
-        Mockito.when(query.setParameter(Mockito.eq(0), Mockito.anyLong())).thenReturn(query);
-        Mockito.when(sessionMock.createQuery(Mockito.anyString())).thenReturn(query);
-        Mockito.when(sessionFactoryMock.openSession()).thenReturn(sessionMock);
         Mockito.when(pixelsServiceMock.getPixelBuffer(Mockito.any(Pixels.class), Mockito.eq(false))).thenReturn(pixelBuffer);
         Mockito.when(httpRequest.method()).thenReturn(HttpMethod.GET);
         Mockito.when(httpRequest.response()).thenReturn(httpResponse);
         final String URI = URI_PATH_PREFIX + '/' + Configuration.PLACEHOLDER_IMAGE_ID + '/';
-        final Map<String, String> settings = ImmutableMap.of(Configuration.CONF_NET_PATH_IMAGE, URI);
+        final Map<String, String> settings = ImmutableMap.of(
+                Configuration.CONF_MASK_OVERLAP_VALUE, Long.toString(MASK_OVERLAP_VALUE),
+                Configuration.CONF_MASK_SPLIT_ENABLE, Boolean.toString(true), // Non-default to enable tests
+                Configuration.CONF_NET_PATH_IMAGE, URI);
         final Configuration configuration = new Configuration(settings);
-        final OmeroDao dao = new OmeroDao(sessionFactoryMock);
+        final OmeroDao dao = daoSetup();
         final PixelBufferCache cache = new PixelBufferCache(configuration, pixelsServiceMock, dao);
         final HttpHandler handler = new RequestHandlerForImage(configuration, pixelsServiceMock, cache, dao);
         router = new RouterFake();
         handler.handleFor(router);
     }
+
+    /**
+     * @return the DAO to be used by {@link #mockSetup()}
+     */
+    protected abstract OmeroDao daoSetup();
 
     /**
      * Construct an endpoint URI for the given query arguments.
@@ -273,5 +267,26 @@ public abstract class ZarrEndpointsTestBase {
             details.add(Arguments.of(--resolution, dataset.getString("path"), dataset.getDouble("scale")));
         }
         return details.build();
+    }
+
+    /**
+     * Uncompress the given byte array.
+     * @param compressed a byte array
+     * @return the uncompressed bytes
+     * @throws DataFormatException unexpected
+     */
+    protected static byte[] uncompress(byte[] compressed) throws DataFormatException {
+        final Inflater inflater = new Inflater();
+        inflater.setInput(compressed);
+        final Buffer uncompressed = Buffer.factory.buffer(2 * compressed.length);
+        final byte[] batch = new byte[8192];
+        int batchSize;
+        do {
+            batchSize = inflater.inflate(batch);
+            uncompressed.appendBytes(batch, 0, batchSize);
+        } while (batchSize > 0);
+        Assertions.assertFalse(inflater.needsDictionary());
+        inflater.end();
+        return uncompressed.getBytes();
     }
 }
