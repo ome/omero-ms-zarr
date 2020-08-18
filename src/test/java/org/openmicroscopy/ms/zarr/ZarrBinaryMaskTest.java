@@ -21,6 +21,7 @@ package org.openmicroscopy.ms.zarr;
 
 import org.openmicroscopy.ms.zarr.mask.ImageMask;
 import static org.openmicroscopy.ms.zarr.RequestHandlerForImage.DEFAULT_LABEL_NAME;
+import static org.openmicroscopy.ms.zarr.RequestHandlerForImage.LABEL_GROUP;
 
 import ome.model.core.Image;
 import ome.model.core.Pixels;
@@ -135,7 +136,7 @@ public class ZarrBinaryMaskTest extends ZarrEndpointsTestBase {
     @Test
     public void testMaskChunks() throws DataFormatException, IOException {
         final Set<Byte> seenIsMasked = new HashSet<>();
-        final JsonObject response = getResponseAsJson(image.getId(), "masks", roi1.getId(), ".zarray");
+        final JsonObject response = getResponseAsJson(image.getId(), LABEL_GROUP, roi1.getId(), ".zarray");
         final JsonArray shape = response.getJsonArray("shape");
         final int maskSizeX = shape.getInteger(4);
         final int maskSizeY = shape.getInteger(3);
@@ -150,7 +151,7 @@ public class ZarrBinaryMaskTest extends ZarrEndpointsTestBase {
             for (int x = 0; x < maskSizeX; x += chunkSizeX) {
                 mockSetup();
                 final byte[] chunkZipped =
-                        getResponseAsBytes(image.getId(), "masks", roi1.getId(), 0, 0, 0, chunkIndexY, chunkIndexX);
+                        getResponseAsBytes(image.getId(), LABEL_GROUP, roi1.getId(), 0, 0, 0, chunkIndexY, chunkIndexX);
                 final byte[] chunk = uncompress(chunkZipped);
                 for (int cx = 0; cx < chunkSizeX; cx++) {
                     for (int cy = 0; cy < chunkSizeY; cy++) {
@@ -179,7 +180,7 @@ public class ZarrBinaryMaskTest extends ZarrEndpointsTestBase {
     @Test
     public void testLabeledMaskChunks() throws DataFormatException, IOException {
         final Set<Long> seenLabels = new HashSet<>();
-        final JsonObject response = getResponseAsJson(image.getId(), "masks", DEFAULT_LABEL_NAME, ".zarray");
+        final JsonObject response = getResponseAsJson(image.getId(), LABEL_GROUP, DEFAULT_LABEL_NAME, ".zarray");
         final JsonArray shape = response.getJsonArray("shape");
         final int maskSizeX = shape.getInteger(4);
         final int maskSizeY = shape.getInteger(3);
@@ -193,7 +194,7 @@ public class ZarrBinaryMaskTest extends ZarrEndpointsTestBase {
             int chunkIndexX = 0;
             for (int x = 0; x < maskSizeX; x += chunkSizeX) {
                 mockSetup();
-                final byte[] chunkZipped = getResponseAsBytes(image.getId(), "masks", DEFAULT_LABEL_NAME, 0, 0, 0, chunkIndexY, chunkIndexX);
+                final byte[] chunkZipped = getResponseAsBytes(image.getId(), LABEL_GROUP, DEFAULT_LABEL_NAME, 0, 0, 0, chunkIndexY, chunkIndexX);
                 final ByteBuffer chunk = ByteBuffer.wrap(uncompress(chunkZipped));
                 for (int cx = 0; cx < chunkSizeX; cx++) {
                     for (int cy = 0; cy < chunkSizeY; cy++) {

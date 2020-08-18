@@ -95,7 +95,17 @@ public class RequestHandlerForImage implements HttpHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandlerForImage.class);
 
-    private static final String DEFAULT_LABEL_NAME = "0";  // See omero-cli-zarr
+    public static final String DEFAULT_LABEL_NAME = "0";  // See omero-cli-zarr
+
+    /**
+     * Key (i.e. path) to the group containing the label arrays.
+     */
+    public static final String LABEL_GROUP = "labels";  // See omero-cli-zarr
+
+    /**
+     * Key (i.e. JSON key) to the metadata for the label arrays.
+     */
+    public static final String LABEL_KEY = LABEL_GROUP;
 
     /**
      * Contains the dimensionality of an image.
@@ -362,24 +372,24 @@ public class RequestHandlerForImage implements HttpHandler {
         this.patternForImageDir = Pattern.compile(path);
         this.patternForImageGroupDir = Pattern.compile(path + "(\\d+)/");
         this.patternForImageChunkDir = Pattern.compile(path + "(\\d+)/(\\d+([/.]\\d+)*)/");
-        this.patternForImageMasksDir = Pattern.compile(path + "masks/");
-        this.patternForMaskDir = Pattern.compile(path + "masks/(\\d+)/");
-        this.patternForMaskChunkDir = Pattern.compile(path + "masks/(\\d+)/(\\d+([/.]\\d+)*)/");
-        this.patternForMaskLabeledDir = Pattern.compile(path + "masks/labell?ed/");
-        this.patternForMaskLabeledChunkDir = Pattern.compile(path + "masks/labell?ed/(\\d+([/.]\\d+)*)/");
+        this.patternForImageMasksDir = Pattern.compile(path + LABEL_GROUP + "/");
+        this.patternForMaskDir = Pattern.compile(path + LABEL_GROUP + "/(\\d+)/");
+        this.patternForMaskChunkDir = Pattern.compile(path + LABEL_GROUP + "/(\\d+)/(\\d+([/.]\\d+)*)/");
+        this.patternForMaskLabeledDir = Pattern.compile(path + LABEL_GROUP + "/" + DEFAULT_LABEL_NAME + "/");
+        this.patternForMaskLabeledChunkDir = Pattern.compile(path + LABEL_GROUP + "/" + DEFAULT_LABEL_NAME + "/(\\d+([/.]\\d+)*)/");
 
         this.patternForImageGroup = Pattern.compile(path + "\\.zgroup");
         this.patternForImageAttrs = Pattern.compile(path + "\\.zattrs");
-        this.patternForImageMasksGroup = Pattern.compile(path + "masks/\\.zgroup");
-        this.patternForImageMasksAttrs = Pattern.compile(path + "masks/\\.zattrs");
-        this.patternForMaskAttrs = Pattern.compile(path + "masks/(\\d+)/\\.zattrs");
-        this.patternForMaskLabeledAttrs = Pattern.compile(path + "masks/labell?ed/\\.zattrs");
+        this.patternForImageMasksGroup = Pattern.compile(path + LABEL_GROUP + "/\\.zgroup");
+        this.patternForImageMasksAttrs = Pattern.compile(path + LABEL_GROUP + "/\\.zattrs");
+        this.patternForMaskAttrs = Pattern.compile(path + LABEL_GROUP + "/(\\d+)/\\.zattrs");
+        this.patternForMaskLabeledAttrs = Pattern.compile(path + LABEL_GROUP + "/" + DEFAULT_LABEL_NAME + "/\\.zattrs");
         this.patternForImageArray = Pattern.compile(path + "(\\d+)/\\.zarray");
-        this.patternForMaskArray = Pattern.compile(path + "masks/(\\d+)/\\.zarray");
-        this.patternForMaskLabeledArray = Pattern.compile(path + "masks/labell?ed/\\.zarray");
+        this.patternForMaskArray = Pattern.compile(path + LABEL_GROUP + "/(\\d+)/\\.zarray");
+        this.patternForMaskLabeledArray = Pattern.compile(path + LABEL_GROUP + "/" + DEFAULT_LABEL_NAME + "/\\.zarray");
         this.patternForImageChunk = Pattern.compile(path + "(\\d+)/(\\d+([/.]\\d+)*)");
-        this.patternForMaskChunk = Pattern.compile(path + "masks/(\\d+)/(\\d+([/.]\\d+)*)");
-        this.patternForMaskLabeledChunk = Pattern.compile(path + "masks/labell?ed/(\\d+([/.]\\d+)*)");
+        this.patternForMaskChunk = Pattern.compile(path + LABEL_GROUP + "/(\\d+)/(\\d+([/.]\\d+)*)");
+        this.patternForMaskLabeledChunk = Pattern.compile(path + LABEL_GROUP + "/" + DEFAULT_LABEL_NAME + "/(\\d+([/.]\\d+)*)");
     }
 
     /**
@@ -662,7 +672,7 @@ public class RequestHandlerForImage implements HttpHandler {
         contents.add(".zgroup");
         for (final long roiId : omeroDao.getRoiIdsOfImage(imageId)) {
             if (omeroDao.getMaskCountOfRoi(roiId) > 0) {
-                contents.add("masks/");
+                contents.add(LABEL_GROUP + "/");
                 break;
             }
         }
@@ -1151,7 +1161,7 @@ public class RequestHandlerForImage implements HttpHandler {
         }
         /* package data for client */
         final Map<String, Object> result = new HashMap<>();
-        result.put("masks", masks);
+        result.put(LABEL_KEY, masks);
         respondWithJson(response, new JsonObject(result));
     }
 
