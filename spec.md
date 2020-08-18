@@ -130,16 +130,27 @@ Unlisted groups MAY be masks.
 
 ### "color"
 
-The `color` key defines an image that is "labeled", i.e. every unique value in the image
+The `color` key defines an integer image that is "labeled", i.e. every unique non-negative value in the image
 represents a unique, non-overlapping object within the image. The value associated with
-the `color` key is another JSON object in which the key is the pixel value of the image and
-the value is an RGBA color (4 byte, `0-255` per channel) for representing the object:
+the `color` key is a JSON array in which each element is a dictionary where:
+  - `label` is the integer pixel value of an object
+  - `rgba` is an RGBA color (4 byte, `0-255` per channel) for representing the object, in future this field may be replaced by an alternative field indicating a different color model
+The elements of the `color` array should be sorted in order of increasing label value.
+Negative label values can be used for implementation-defined purposes.
 
 ```
 {
-  "color": {
-    "1": 8388736,
+  "color": [
+    {
+      "label": 1,
+      "rgba": 8388736
+    },
+    {
+      "label": 2,
+      "rgba": 10101010
+    },
     ...
+  ]
 ```
 ### "image"
 
