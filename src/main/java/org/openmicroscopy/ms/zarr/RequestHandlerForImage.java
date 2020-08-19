@@ -775,7 +775,7 @@ public class RequestHandlerForImage implements HttpHandler {
         final ImmutableList.Builder<String> contents = ImmutableList.builder();
         contents.add(".zattrs");
         if (labeledMasks != null) {
-            contents.add(DEFAULT_LABEL_NAME);
+            contents.add(DEFAULT_LABEL_NAME + "/");
         }
         if (isSplitMasksEnabled) {
             for (long roiId : roiIdsWithMask) {
