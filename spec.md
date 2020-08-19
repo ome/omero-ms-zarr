@@ -92,6 +92,7 @@ can be found under the "omero" key in the group-level metadata:
 ```
 "id": 1,                              # ID in OMERO
 "name": "example.tif",                # Name as shown in the UI
+"version": "0.1",                     # Current version
 "channels": [                         # Array matching the c dimension size
     {
         "active": true,
