@@ -44,9 +44,14 @@ for public re-use.
         │
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
-            └── 0
-                ├── .zarray   # Each label itself is a 5D array matching the highest resolution
-                └── .zattrs   # of the related image and has an extra key, "color", with display information.
+            │
+            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in "labels".
+                ├── .zgroup   # Each labeled image is also a multiscaled image, and therefore a Zarr group.
+                ├── .zattrs   # Metadata of the related image and has an extra key, "color", with display information.
+                │
+                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above.
+                │   ...
+                └── n
 
 
 ```
@@ -128,6 +133,10 @@ the paths to label objects which can be found underneath the group:
 
 Unlisted groups MAY be labels.
 
+### "label""
+
+
+
 ### "color"
 
 The `color` key defines an image that is "labeled", i.e. every unique value in the image
@@ -166,7 +175,8 @@ If included it must include a key `array` whose value that is either:
 
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
-| 0.1.3      | 2020-08-18   | Rename masks as labels                     |
+| 0.1.3-dev3 | in-progress  | Convert labels to multiscales              |
+| 0.1.3-dev2 | 2020-08-18   | Rename masks as labels                     |
 | 0.1.3-dev1 | 2020-07-07   | Add mask metadata                          |
 | 0.1.2      | 2020-05-07   | Add description of "omero" metadata        |
 | 0.1.1      | 2020-05-06   | Add info on the ordering of resolutions    |
