@@ -155,19 +155,11 @@ the value is an RGBA color (4 byte, `0-255` per channel) for representing the ob
 
 The `image` key is an optional dictionary which contains information on the image the label is associated with.
 If included it must include a key `array` whose value that is either:
-- A relative path to a Zarr image array, for example:
+- A relative path to a Zarr image group, for example:
     ```
     {
       "image": {
         "array": "../../0"
-      }
-    }
-    ```
-- A URL to a Zarr image array (use this if the label is stored seperately from the image Zarr), for example:
-    ```
-    {
-      "image": {
-        "array": "https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001240.zarr/0"
       }
     }
     ```
