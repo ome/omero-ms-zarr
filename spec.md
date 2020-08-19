@@ -33,19 +33,19 @@ for public re-use.
     │   └── t.c.z.y.x         # a "chunk coordinate", where the maximum coordinate
     │                         # will be `dimension_size / chunk_size`.
     │
-    └── masks
+    └── labels
         │
-        ├── .zgroup           # The masks group is a container which holds a list
-        ├── .zattrs           # of masks to make the objects easily discoverable,
-        │                     # All masks will be listed in `.zattrs` e.g. `{ "masks": [ "original/0" ] }`
-        │                     # Each dimension of the mask `(t, c, z, y, x)` should be either the same as the
-        │                     # corresponding dimension of the image, or `1` if that dimension of the mask
+        ├── .zgroup           # The labels group is a container which holds a list
+        ├── .zattrs           # of labels to make the objects easily discoverable,
+        │                     # All labels will be listed in `.zattrs` e.g. `{ "labels": [ "original/0" ] }`
+        │                     # Each dimension of the label `(t, c, z, y, x)` should be either the same as the
+        │                     # corresponding dimension of the image, or `1` if that dimension of the label
         │                     # is irrelevant.
         │
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
             └── 0
-                ├── .zarray   # Each mask itself is a 5D array matching the highest resolution
+                ├── .zarray   # Each label itself is a 5D array matching the highest resolution
                 └── .zattrs   # of the related image and has an extra key, "color", with display information.
 
 
@@ -113,20 +113,20 @@ can be found under the "omero" key in the group-level metadata:
 See https://docs.openmicroscopy.org/omero/5.6.1/developers/Web/WebGateway.html#imgdata
 for more information.
 
-### "masks"
+### "labels"
 
-The special group "masks" found under an image Zarr contains the key `masks` containing
-the paths to mask objects which can be found underneath the group:
+The special group "labels" found under an image Zarr contains the key `labels` containing
+the paths to label objects which can be found underneath the group:
 
 ```
 {
-  "masks": [
+  "labels": [
     "orphaned/0"
   ]
 }
 ```
 
-Unlisted groups MAY be masks.
+Unlisted groups MAY be labels.
 
 ### "color"
 
@@ -143,7 +143,7 @@ the value is an RGBA color (4 byte, `0-255` per channel) for representing the ob
 ```
 ### "image"
 
-The `image` key is an optional dictionary which contains information on the image the mask is associated with.
+The `image` key is an optional dictionary which contains information on the image the label is associated with.
 If included it must include a key `array` whose value that is either:
 - A relative path to a Zarr image array, for example:
     ```
@@ -153,7 +153,7 @@ If included it must include a key `array` whose value that is either:
       }
     }
     ```
-- A URL to a Zarr image array (use this if the mask is stored seperately from the image Zarr), for example:
+- A URL to a Zarr image array (use this if the label is stored seperately from the image Zarr), for example:
     ```
     {
       "image": {
@@ -166,7 +166,8 @@ If included it must include a key `array` whose value that is either:
 
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
-| 0.1.3      | 2020-07-07   | Add mask metadata                          |
+| 0.1.3      | 2020-08-18   | Rename masks as labels                     |
+| 0.1.3-dev1 | 2020-07-07   | Add mask metadata                          |
 | 0.1.2      | 2020-05-07   | Add description of "omero" metadata        |
 | 0.1.1      | 2020-05-06   | Add info on the ordering of resolutions    |
 | 0.1.0      | 2020-04-20   | First version for internal demo            |
