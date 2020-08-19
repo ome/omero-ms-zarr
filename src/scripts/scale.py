@@ -10,6 +10,11 @@ parser.add_argument("output_directory")
 parser.add_argument(
     "--method", choices=("gaussian", "laplacian"), default="gaussian"
 )
+parser.add_argument(
+    "--in-place",
+    action="store_true",
+    help="if true, don't write the base array"
+)
 parser.add_argument("--downscale", type=int, default=2)
 parser.add_argument("--max_layer", type=int, default=4)
 ns = parser.parse_args()
