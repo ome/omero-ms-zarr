@@ -44,9 +44,14 @@ for public re-use.
         │
         └── original          # Intermediate folders are permitted but not necessary
             │                 # and currently contain no extra metadata.
-            └── 0
-                ├── .zarray   # Each label itself is a 5D array matching the highest resolution
-                └── .zattrs   # of the related image and has an extra key, "color", with display information.
+            │
+            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in "labels".
+                ├── .zgroup   # Each labeled image is also a multiscaled image, and therefore a Zarr group.
+                ├── .zattrs   # Metadata of the related image and has an extra key, "color", with display information.
+                │
+                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above.
+                │   ...
+                └── n
 
 
 ```
@@ -87,6 +92,7 @@ can be found under the "omero" key in the group-level metadata:
 ```
 "id": 1,                              # ID in OMERO
 "name": "example.tif",                # Name as shown in the UI
+"version": "0.1",                     # Current version
 "channels": [                         # Array matching the c dimension size
     {
         "active": true,
@@ -128,6 +134,10 @@ the paths to label objects which can be found underneath the group:
 
 Unlisted groups MAY be labels.
 
+### "label""
+
+
+
 ### "color"
 
 The `color` key defines an image that is "labeled", i.e. every unique value in the image
@@ -145,19 +155,11 @@ the value is an RGBA color (4 byte, `0-255` per channel) for representing the ob
 
 The `image` key is an optional dictionary which contains information on the image the label is associated with.
 If included it must include a key `array` whose value that is either:
-- A relative path to a Zarr image array, for example:
+- A relative path to a Zarr image group, for example:
     ```
     {
       "image": {
         "array": "../../0"
-      }
-    }
-    ```
-- A URL to a Zarr image array (use this if the label is stored seperately from the image Zarr), for example:
-    ```
-    {
-      "image": {
-        "array": "https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001240.zarr/0"
       }
     }
     ```
@@ -166,7 +168,8 @@ If included it must include a key `array` whose value that is either:
 
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
-| 0.1.3      | 2020-08-18   | Rename masks as labels                     |
+| 0.1.3-dev3 | in-progress  | Convert labels to multiscales              |
+| 0.1.3-dev2 | 2020-08-18   | Rename masks as labels                     |
 | 0.1.3-dev1 | 2020-07-07   | Add mask metadata                          |
 | 0.1.2      | 2020-05-07   | Add description of "omero" metadata        |
 | 0.1.1      | 2020-05-06   | Add info on the ordering of resolutions    |
