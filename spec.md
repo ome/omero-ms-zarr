@@ -48,8 +48,8 @@ for public re-use.
                 ├── .zgroup   # Zarr Group which is both a multiscaled image as well as a labeled image.
                 ├── .zattrs   # Metadata of the related image and as well as display information under the "image-label" key.
                 │
-                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above.
-                │   ...
+                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above, but only integer values
+                │   ...       # are supported.
                 └── n
 
 
