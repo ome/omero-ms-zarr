@@ -35,22 +35,21 @@ for public re-use.
     │
     └── labels
         │
-        ├── .zgroup           # The labels group is a container which holds a list
-        ├── .zattrs           # of labels to make the objects easily discoverable,
-        │                     # All labels will be listed in `.zattrs` e.g. `{ "labels": [ "original/0" ] }`
+        ├── .zgroup           # The labels group is a container which holds a list of labels to make the objects easily discoverable
+        │
+        ├── .zattrs           # All labels will be listed in `.zattrs` e.g. `{ "labels": [ "original/0" ] }`
         │                     # Each dimension of the label `(t, c, z, y, x)` should be either the same as the
         │                     # corresponding dimension of the image, or `1` if that dimension of the label
         │                     # is irrelevant.
         │
-        └── original          # Intermediate folders are permitted but not necessary
-            │                 # and currently contain no extra metadata.
+        └── original          # Intermediate folders are permitted but not necessary and currently contain no extra metadata.
             │
-            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in "labels".
-                ├── .zgroup   # Each labeled image is also a multiscaled image, and therefore a Zarr group.
-                ├── .zattrs   # Metadata of the related image and has an extra key, "color", with display information.
+            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in the "labels" group above.
+                ├── .zgroup   # Zarr Group which is both a multiscaled image as well as a labeled image.
+                ├── .zattrs   # Metadata of the related image and as well as display information under the "image-label" key.
                 │
-                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above.
-                │   ...
+                ├── 0         # Each multiscale level is stored as a separate Zarr array, as above, but only integer values
+                │   ...       # are supported.
                 └── n
 
 
@@ -70,7 +69,7 @@ in [zarr-specs#50](https://github.com/zarr-developers/zarr-specs/issues/50).
 If only one multiscale is provided, use it. Otherwise, the user can choose by
 name, using the first multiscale as a fallback:
 
-```
+```python
 datasets = []
 for named in multiscales:
     if named["name"] == "3D":
@@ -89,7 +88,7 @@ to lowest.
 Information specific to the channels of an image and how to render it
 can be found under the "omero" key in the group-level metadata:
 
-```
+```json
 "id": 1,                              # ID in OMERO
 "name": "example.tif",                # Name as shown in the UI
 "version": "0.1",                     # Current version
@@ -119,12 +118,12 @@ can be found under the "omero" key in the group-level metadata:
 See https://docs.openmicroscopy.org/omero/5.6.1/developers/Web/WebGateway.html#imgdata
 for more information.
 
-### "labels"
+### "labels" metadata
 
 The special group "labels" found under an image Zarr contains the key `labels` containing
 the paths to label objects which can be found underneath the group:
 
-```
+```json
 {
   "labels": [
     "orphaned/0"
@@ -134,41 +133,57 @@ the paths to label objects which can be found underneath the group:
 
 Unlisted groups MAY be labels.
 
-### "label""
+### "image-label" metadata
+
+Groups containing the `image-label` dictionary represent an image segmentation
+in which each unique pixel value represents a separate segmented object.
+`image-label` groups MUST also contain `multiscales` metadata and the two
+"datasets" series MUST have the same number of entries.
+
+The `colors` key defines a list of JSON objects describing the unique label
+values. Each entry in the list MUST contain the key "label-value" with the
+pixel value for that label. Additionally, the "rgba" key MAY be present, the
+value for which is an RGBA unsigned-int 4-tuple: `[uint8, uint8, uint8, uint8]`
+All `label-value`s must be unique. Clients who choose to not throw an error
+should ignore all except the _last_ entry.
+
+Some implementations may represent overlapping labels by using a specially assigned
+value, for example the highest integer available in the pixel range.
+
+The `source` key is an optional dictionary which contains information on the
+image the label is associated with. If included it MAY include a key `image`
+whose value is the relative path to a Zarr image group. The default value is
+"../../" since most labels are stored under a subgroup named "labels/" (see
+above).
 
 
-
-### "color"
-
-The `color` key defines an image that is "labeled", i.e. every unique value in the image
-represents a unique, non-overlapping object within the image. The value associated with
-the `color` key is another JSON object in which the key is the pixel value of the image and
-the value is an RGBA color (4 byte, `0-255` per channel) for representing the object:
-
-```
-{
-  "color": {
-    "1": 8388736,
-    ...
-```
-### "image"
-
-The `image` key is an optional dictionary which contains information on the image the label is associated with.
-If included it must include a key `array` whose value that is either:
-- A relative path to a Zarr image group, for example:
-    ```
-    {
-      "image": {
-        "array": "../../0"
-      }
+```json
+"image-label":
+  {
+    "version": "0.1",
+    "colors": [
+      {
+        "label-value": 1,
+        "rgba": [255, 255, 255, 0]
+      },
+      {
+        "label-value": 4,
+        "rgba": [0, 255, 255, 128]
+      },
+      ...
+      ]
+    },
+    "source": {
+      "image": "../../"
     }
-    ```
-
+]
+```
 
 
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
-| 0.1.3-dev3 | in-progress  | Convert labels to multiscales              |
+| 0.1.3-dev4 | 2020-09-14   | Add the image-label object                 |
+| 0.1.3-dev3 | 2020-09-01   | Convert labels to multiscales              |
 | 0.1.3-dev2 | 2020-08-18   | Rename masks as labels                     |
 | 0.1.3-dev1 | 2020-07-07   | Add mask metadata                          |
 | 0.1.2      | 2020-05-07   | Add description of "omero" metadata        |
