@@ -35,18 +35,17 @@ for public re-use.
     │
     └── labels
         │
-        ├── .zgroup           # The labels group is a container which holds a list
-        ├── .zattrs           # of labels to make the objects easily discoverable,
-        │                     # All labels will be listed in `.zattrs` e.g. `{ "labels": [ "original/0" ] }`
+        ├── .zgroup           # The labels group is a container which holds a list of labels to make the objects easily discoverable
+        │
+        ├── .zattrs           # All labels will be listed in `.zattrs` e.g. `{ "labels": [ "original/0" ] }`
         │                     # Each dimension of the label `(t, c, z, y, x)` should be either the same as the
         │                     # corresponding dimension of the image, or `1` if that dimension of the label
         │                     # is irrelevant.
         │
-        └── original          # Intermediate folders are permitted but not necessary
-            │                 # and currently contain no extra metadata.
+        └── original          # Intermediate folders are permitted but not necessary and currently contain no extra metadata.
             │
-            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in "labels".
-                ├── .zgroup   # Each labeled image is also a multiscaled image, and therefore a Zarr group.
+            └── 0             # Multiscale, labeled image. The name is unimportant but is registered in the "labels" group above.
+                ├── .zgroup   # Zarr Group which is both a multiscaled image as well as a labeled image.
                 ├── .zattrs   # Metadata of the related image and as well as display information under the "image-label" key.
                 │
                 ├── 0         # Each multiscale level is stored as a separate Zarr array, as above.
@@ -70,7 +69,7 @@ in [zarr-specs#50](https://github.com/zarr-developers/zarr-specs/issues/50).
 If only one multiscale is provided, use it. Otherwise, the user can choose by
 name, using the first multiscale as a fallback:
 
-```
+```python
 datasets = []
 for named in multiscales:
     if named["name"] == "3D":
@@ -89,7 +88,7 @@ to lowest.
 Information specific to the channels of an image and how to render it
 can be found under the "omero" key in the group-level metadata:
 
-```
+```json
 "id": 1,                              # ID in OMERO
 "name": "example.tif",                # Name as shown in the UI
 "version": "0.1",                     # Current version
@@ -124,7 +123,7 @@ for more information.
 The special group "labels" found under an image Zarr contains the key `labels` containing
 the paths to label objects which can be found underneath the group:
 
-```
+```json
 {
   "labels": [
     "orphaned/0"
@@ -145,8 +144,8 @@ The `colors` key defines a list of JSON objects describing the unique label
 values. Each entry in the list MUST contain the key "label-value" with the
 pixel value for that label. Additionally, the "rgba" key MAY be present, the
 value for which is an RGBA unsigned-int 4-tuple: `[uint8, uint8, uint8, uint8]`
-In the case that the same `label-value` is present multiple times in the list,
-the last value wins.
+All `label-value`s must be unique. Clients who choose to not throw an error
+should ignore all except the _last_ entry.
 
 Some implementations may represent overlapping labels by using a specially assigned
 value, for example the highest integer available in the pixel range.
@@ -158,7 +157,7 @@ whose value is the relative path to a Zarr image group. The default value is
 above).
 
 
-```
+```json
 "image-label":
   {
     "version": "0.1",
@@ -181,11 +180,9 @@ above).
 ```
 
 
-
-
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
-| 0.1.3-dev4 | in-progress  | Add the image-label object                 |
+| 0.1.3-dev4 | 2020-09-14   | Add the image-label object                 |
 | 0.1.3-dev3 | 2020-09-01   | Convert labels to multiscales              |
 | 0.1.3-dev2 | 2020-08-18   | Rename masks as labels                     |
 | 0.1.3-dev1 | 2020-07-07   | Add mask metadata                          |
