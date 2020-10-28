@@ -243,9 +243,85 @@ above).
 ]
 ```
 
+### "plate" metadata
+
+For high-content screening datasets, the plate layout can be found under the custom attributes of the plate group under the `plate` key.
+
+plateAcquisitions
+  A list of JSON objects defining the acquisitions for a given plate.
+  Each acquisition object MUST contain a `path` key identifying the path to the
+  acquisition group.
+
+rows
+  An integer defining the number of rows i.e. the first dimension of
+  a two-dimensional array of wells.
+
+row_names
+  A list of strings defining the names of the rows
+
+rows
+  An integer defining the number of columns i.e. the first dimension of
+  a two-dimensional array of wells.
+
+column_names
+  A list of strings defining the names of the columns
+
+images
+  A list of JSON objects defining the images (or well samples) containing in
+  the plate.
+  Each image object MUST contain a `path` key identifying the path to the
+  individual image.
+  
+
+For example the following JSON object encodes a plate with one acquisition and
+6 wells containing up to two fields of view each.
+
+```json
+"plate":
+  {
+    "rows": 2,
+    "columns": 3,
+    "row_names": ["A", "B"],
+    "column_names": ["1", "2", "3"],
+    "plateAcquisitions": [
+        {"path": "2020-10-10"}
+    ],
+    "images": [
+        {
+            "path": "2020-10-10/A/1/Field_1"
+        },
+        {
+            "path": "2020-10-10/A/1/Field_2"
+        },
+        {
+            "path": "2020-10-10/A/2/Field_1"
+        },
+        {
+            "path": "2020-10-10/A/2/Field_2"
+        },
+        },
+        {
+            "path": "2020-10-10/A/3/Field_1"
+        },
+        {
+            "path": "2020-10-10/B/1/Field_1"
+        },
+        {
+            "path": "2020-10-10/B/2/Field_1"
+        },
+        {
+            "path": "2020-10-10/B/3/Field_1"
+        }
+    ]
+  }
+```
+
+
+
 
 | Revision   | Date         | Description                                |
 | ---------- | ------------ | ------------------------------------------ |
+| 0.1.3-dev5 | TBD.         | Add the HCS specification                  |
 | 0.1.3-dev4 | 2020-09-14   | Add the image-label object                 |
 | 0.1.3-dev3 | 2020-09-01   | Convert labels to multiscales              |
 | 0.1.3-dev2 | 2020-08-18   | Rename masks as labels                     |
