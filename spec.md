@@ -294,7 +294,6 @@ For example the following JSON object encodes a plate with one acquisition and
         {
             "path": "2020-10-10/A/2/Field_2"
         },
-        },
         {
             "path": "2020-10-10/A/3/Field_1"
         },
