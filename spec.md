@@ -5,6 +5,10 @@ scripts provided by this repository will support one or more versions of this
 file, but they should all be considered internal investigations, not intended
 for public re-use.
 
+The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”,
+“SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be
+interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
 ## On-disk (or in-cloud) layout
 
 ```
