@@ -11,6 +11,11 @@ interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
 ## On-disk (or in-cloud) layout
 
+### Images
+
+The following layout describes the expected Zarr hierarchy for images with
+multiple levels of resolutions and optionally associated labels.
+
 ```
 
 .                             # Root folder, potentially in S3,
@@ -55,7 +60,62 @@ interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
                 ├── 0         # Each multiscale level is stored as a separate Zarr array, as above, but only integer values
                 │   ...       # are supported.
                 └── n
+```
 
+### High-content screening
+
+The following layout should describe the hierarchy for a high-content screening
+dataset. There are exactly four levels of hierarchies above the images:
+
+- the top-level group defines the plate, it MUST implement the plate
+  specification defined below
+- the second group defines all acquisitions performed on a single plate. If 
+  only one acquisition was performed, a single group must be used.
+- the third group defines all the well rows available for an acquisition
+- the fourth group defines all the well columns available for a given well row
+- the fifth group defined all the individual fields of views for a given well.
+  The fields of views are images, SHOULD implement the "multiscales"
+  specification, MAY implement the "omero" specification and MAY contain 
+  labels.
+
+```
+.                                # Root folder, potentially in S3,
+│
+├── 123.zarr                     # One image (id=123) converted to Zarr.
+│
+└── 5966.zarr                     # One plate (id=5966) converted to Zarr
+    ├── .zgroup
+    ├── .zattrs                   # Implements "plate" specification
+    │
+    ├── 2020-10-10                # First acquisition 
+    │   │
+    │   ├── .zgroup
+    │   ├── .zattrs
+    │   │
+    │   ├── A                     # First row of acquisition 2020-10-10
+    │   │   ├── .zgroup
+    │   │   ├── .zattrs
+    │   │   │
+    │   │   ├── 1                 # First column of row A
+    │   │   │   ├── .zgroup
+    │   │   │   ├── .zattrs
+    │   │   │   │
+    │   │   │   ├── Field_1       # First field of view of well A1
+    │   │   │   │   │
+    │   │   │   │   ├── .zgroup
+    │   │   │   │   ├── .zattrs   # Implements "multiscales", "omero"
+    │   │   │   │   ├── 0
+    │   │   │   │   │   ...       # Resolution levels
+    │   │   │   │   ├── n
+    │   │   │   │   └── labels
+    │   │   │   ├── ...           # Fields of view
+    │   │   │   └── Field_m
+    │   │   ├── ...               # Columns
+    │   │   └── 12
+    │   ├── ...                   # Rows
+    │   └── H
+    ├── ...                       # Acquisitions
+    └── l
 
 ```
 
