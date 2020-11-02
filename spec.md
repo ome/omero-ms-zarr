@@ -248,6 +248,8 @@ above).
 For high-content screening datasets, the plate layout can be found under the custom attributes of the plate group under the `plate` key.
 
 <dl>
+  <dt><strong>name</strong></dt>
+  <dd>A string defining the name of the plate.</dd>
   <dt><strong>plateAcquisitions</strong></dt>
   <dd>A list of JSON objects defining the acquisitions for a given plate.
       Each acquisition object MUST contain a `path` key identifying the path 
@@ -274,6 +276,7 @@ For example the following JSON object encodes a plate with one acquisition and
 ```json
 "plate":
   {
+    "name": "test",
     "rows": 2,
     "columns": 3,
     "row_names": ["A", "B"],
