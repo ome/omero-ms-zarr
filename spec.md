@@ -64,7 +64,7 @@ multiple levels of resolutions and optionally associated labels.
 
 ### High-content screening
 
-The following layout should describe the hierarchy for a high-content screening
+The following layout describes the hierarchy for a high-content screening
 dataset. There are exactly four levels of hierarchies above the images:
 
 - the top-level group defines a single plate and MUST implement the plate
