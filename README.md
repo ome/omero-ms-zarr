@@ -1,10 +1,9 @@
 # OMERO Zarr Microservice
 
-An OMERO.server microservice that serves OME.zarr images and metadata.
-
-This also contains the [official OME Zarr specification](./spec.md).
-
-For an overview of other OME Zarr projects see [`related.md`](./related.md).
+An OMERO.server microservice that serves OME.zarr images and metadata
+based on the specification available at https://ngff.openmicroscopy.org/latest/.
+A list of implementations that can load data from omero-ms-zarr is available
+in the specification.
 
 
 ## Summary
