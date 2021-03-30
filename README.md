@@ -57,7 +57,7 @@ In addition to your usual OMERO.server configuration, the microservice's
 : zlib compression level for chunks, default 6
 
 `omero.ms.zarr.folder.layout`
-: for directory listings, default `flattened` chunks, can be `nested`; `none` disables directory listings
+: for directory listings, default `nested` chunks, can be `flattened`; `none` disables directory listings
 
 `omero.ms.zarr.mask.split.enable`
 : if masks split by ROI should be offered; default is `false`, can be set to `true`
