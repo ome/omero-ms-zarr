@@ -18,4 +18,4 @@ RUN apk add --no-cache bash
 COPY --from=build /omero-ms-zarr-shadow/ .
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-cp", "/lib/omero-ms-zarr-0.1.7-SNAPSHOT-all.jar", "org.openmicroscopy.ms.zarr.ConfigEnv"]
+ENTRYPOINT ["java", "-cp", "/lib/omero-ms-zarr-0.2.0-all.jar", "org.openmicroscopy.ms.zarr.ConfigEnv"]
