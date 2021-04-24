@@ -65,7 +65,7 @@ public class Configuration {
     private List<Character> chunkSizeAdjust = ImmutableList.of('X', 'Y', 'Z');
     private int chunkSizeMin = 0x100000;
     private int zlibLevel = 6;
-    private Boolean foldersNested = false;
+    private Boolean foldersNested = true;
     private String netPath = getRegexForNetPath("/image/" + PLACEHOLDER_IMAGE_ID + ".zarr/");
     private int netPort = 8080;
     private boolean maskSplitEnable = false;

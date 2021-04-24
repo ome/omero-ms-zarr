@@ -1121,7 +1121,7 @@ public class RequestHandlerForImage implements HttpHandler {
         }
         final Map<String, Object> omero = buildOmeroMetadata(pixels);
         final Map<String, Object> multiscale = new HashMap<>();
-        multiscale.put("version", "0.1");
+        multiscale.put("version", "0.2");
         multiscale.put("name", "default");
         multiscale.put("datasets", datasets);
         final JsonArray multiscales = new JsonArray();
