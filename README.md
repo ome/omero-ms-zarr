@@ -20,6 +20,9 @@ It is not suitable for production use.
 
     gradle build
 
+if minio is not running, you can exclude the corresponding tests
+
+    gradle build -PexcludeTests=**/s3*
 
 ## Run
 
