@@ -102,7 +102,7 @@ public class ZarrMetadataTest extends ZarrEndpointsImageTestBase {
             paths.add(path);
         }
         Assertions.assertEquals(pixelBuffer.getResolutionLevels(), paths.size());
-        Assertions.assertEquals("0.1", multiscale.getString("version"));
+        Assertions.assertEquals("0.2", multiscale.getString("version"));
         /* OMERO extras */
         final JsonObject omero = response.getJsonObject("omero");
         assertNoExtraKeys(omero, "id", "name", "channels", "rdefs");
