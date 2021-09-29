@@ -71,4 +71,7 @@ test {
         events "passed", "skipped", "failed"
         maxGranularity 2
     }
+    if (project.hasProperty('excludeTests')) {
+        exclude project.property('excludeTests')
+    }
 }
