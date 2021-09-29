@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/ome/omero-ms-zarr/workflows/Gradle/badge.svg)](https://github.com/ome/omero-ms-zarr/actions)
+
 # OMERO Zarr Microservice
 
 An OMERO.server microservice that serves OME.zarr images and metadata
