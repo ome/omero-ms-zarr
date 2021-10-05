@@ -11,14 +11,19 @@ jobs:
   dispatch:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: ['ome/ome_zarr_test_suite']
+    env:
+      event_dispatch: run_test_suite
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Dispatch event to ome_zarr_test_suite.
+      - name: Dispatch event
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.API_TOKEN_GITHUB }}
-          event-type: run_test_suite
-          repository: ome/ome_zarr_test_suite
+          event-type: ${{ env.event_dispatch }}
+          repository: ${{ matrix.repo }}
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.event.pull_request.head.sha }}", "repo": "${{ github.repository }}", "owner": "${{github.repository_owner}}", "number": "${{github.event.number}}"}'
