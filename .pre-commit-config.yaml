@@ -6,7 +6,7 @@ repos:
     # default black line length is 88
     args: [--target-version=py35, --line-length=79]
 - repo: https://github.com/PyCQA/flake8
-  rev: 3.9.2
+  rev: 4.0.1
   hooks:
   - id: flake8
     # default flake8 line length is 79
