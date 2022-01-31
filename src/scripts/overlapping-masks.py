@@ -65,7 +65,7 @@ def make_circle(h, w):
     cy = h // 2
     r = min(w, h) // 2
 
-    mask = (x[np.newaxis, :] - cx) ** 2 + (y[:, np.newaxis] - cy) ** 2 < r ** 2
+    mask = (x[np.newaxis, :] - cx) ** 2 + (y[:, np.newaxis] - cy) ** 2 < r**2
     arr[mask] = 1
     arr = np.packbits(arr)
     return arr
