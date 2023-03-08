@@ -28,5 +28,5 @@ jobs:
           echo AWS_SECRET_ACCESS_KEY=stsadmin-secret >> $GITHUB_ENV
       - name: Build
         run: |
-          gradle check -PexcludeTests="**/s3*" 
+          gradle check
           gradle shadowJar
