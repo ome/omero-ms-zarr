@@ -14,6 +14,12 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Random;
+import software.amazon.awssdk.core.sync.RequestBody;
+
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestTokenCreator {
@@ -31,7 +37,7 @@ public class TestTokenCreator {
 
     S3Client requestSessionToken() {
         S3TokenCreator tokenCreator = new S3TokenCreator();
-        AssumeRoleResponse response = tokenCreator.createToken(endpoint, "", "bucketa", "1/*");
+        AssumeRoleResponse response = tokenCreator.createToken(endpoint, "", "bucketa", "1/1/*");
         AwsSessionCredentials awsCreds = AwsSessionCredentials.create(
                 response.credentials().accessKeyId(),
                 response.credentials().secretAccessKey(),
@@ -42,20 +48,20 @@ public class TestTokenCreator {
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds)).build();
     }
 
+
     @Test
     @DisplayName("Test session token allowed list and read")
     void testAllowed() {
         S3Client s3 = requestSessionToken();
-
         List<S3Object> bucketa = s3.listObjects(ListObjectsRequest.builder()
                 .bucket("bucketa")
-                .prefix("1/")
+                .prefix("1/1/")
                 .build()).contents();
         assertEquals(bucketa.size(), 1);
-        assertEquals(bucketa.get(0).key(), "1/hello.txt");
+        assertEquals(bucketa.get(0).key(), "1/1/hello.txt");
 
         String bucketa1hello = s3.getObjectAsBytes(GetObjectRequest.builder()
-                .bucket("bucketa").key("1/hello.txt").build()).asString(Charset.defaultCharset());
+                .bucket("bucketa").key("1/1/hello.txt").build()).asString(Charset.defaultCharset());
         assertEquals(bucketa1hello, "hello\n");
     }
 
@@ -70,7 +76,7 @@ public class TestTokenCreator {
         S3Exception throwsListBucketa2 = assertThrows(S3Exception.class,
                 () -> s3.listObjects(ListObjectsRequest.builder()
                         .bucket("bucketa")
-                        .prefix("2/")
+                        .prefix("1/2/")
                         .build()));
         assertTrue(throwsListBucketa2.getMessage().startsWith("Access Denied."));
 
