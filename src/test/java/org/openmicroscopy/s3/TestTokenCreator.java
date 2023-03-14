@@ -14,11 +14,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.List;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Random;
-import software.amazon.awssdk.core.sync.RequestBody;
-
 
 import static org.junit.jupiter.api.Assertions.*;
 
