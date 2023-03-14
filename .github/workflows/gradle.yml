@@ -16,17 +16,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-
       - name: Set up JDK ${{ matrix.java }} and Gradle
         uses: ome/action-gradle@v3.2
         with:
           java-version: ${{ matrix.java }}
       - name: Prepare minio
+        if: runner.os != 'Windows'
         run: |
           (cd ci && ./startminio.sh)
           echo AWS_ACCESS_KEY_ID=stsadmin >> $GITHUB_ENV
           echo AWS_SECRET_ACCESS_KEY=stsadmin-secret >> $GITHUB_ENV
-      - name: Build
+      - name: Gradle check
+        if: runner.os != 'Windows'
         run: |
           gradle check
-          gradle shadowJar
+      - name: Gradle check
+        if: runner.os == 'Windows'
+        run: |
+          gradle check -PexcludeTests="**/s3*" 
+      - name: Gradle shadowJar
+        run: gradle shadowJar
