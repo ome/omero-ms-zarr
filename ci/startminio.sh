@@ -13,12 +13,18 @@ chmod +x minio mc
 ./minio --version
 ./mc --version
 
-export MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123
+export MINIO_ROOT_USER=minio MINIO_ROOT_PASSWORD=minio123
+mkdir 1
+touch 1/hello.txt
+echo "hello" >> 1/hello.txt
 ./minio server --address localhost:$PORT . &
 sleep 2;
 
-./mc config host add $CONFIGNAME http://localhost:$PORT ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}
+./mc config host add $CONFIGNAME http://localhost:$PORT ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}
 
 ./mc admin user add $CONFIGNAME stsadmin stsadmin-secret
 ./mc admin policy add $CONFIGNAME readall s3-policy-readall.json
 ./mc admin policy set $CONFIGNAME readall user=stsadmin
+
+./mc mb -p $CONFIGNAME/bucketa/1/
+./mc cp --recursive 1 $CONFIGNAME/bucketa/1
