@@ -24,7 +24,7 @@ sleep 2;
 
 ./mc admin user add $CONFIGNAME stsadmin stsadmin-secret
 ./mc admin policy create $CONFIGNAME readall s3-policy-readall.json
-./mc admin policy set $CONFIGNAME readall user=stsadmin
+./mc admin policy attach $CONFIGNAME readall --user=stsadmin
 
 ./mc mb -p $CONFIGNAME/bucketa/1/
 ./mc cp --recursive 1 $CONFIGNAME/bucketa/1
