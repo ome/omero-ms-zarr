@@ -3,7 +3,7 @@ version: "3"
 services:
 
   database:
-    image: "postgres:11"
+    image: "postgres:14"
     environment:
       POSTGRES_USER: omero
       POSTGRES_DB: omero
@@ -32,6 +32,10 @@ services:
       - "4064:4064"
     volumes:
       - "omero:/OMERO"
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 65536
 
   omeroweb:
     image: "openmicroscopy/omero-web-standalone:5.6"
