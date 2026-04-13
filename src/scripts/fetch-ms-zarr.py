@@ -35,7 +35,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--endpoint-url",
-    default="https://uk1s3.embassy.ebi.ac.uk/",
+    default="https://livingobjects.ebi.ac.uk/",
     help=("Choose which service for download" " [%(default)s]"),
 )
 parser.add_argument(
